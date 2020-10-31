@@ -46,6 +46,10 @@ func RunExecutor(ctx context.Context, action func(Executor) error) error {
 		return err
 	}
 
+	if err := b.Validate(); err != nil {
+		return err
+	}
+
 	executor, err := NewExecutor(ctx, b)
 	if err != nil {
 		return err

@@ -21,8 +21,8 @@ type Config struct {
 	// Bigshot template name. This will be key of dynamodb table
 	Name string `yaml:"name"`
 
-	// Bigshot template name. This will be key of dynamodb table
-	SlackURL string `yaml:"slack_url"`
+	// List of slack URLs for alert
+	SlackURLs []string `yaml:"slack_urls"`
 
 	// List of targets for api check
 	Targets []Target `yaml:"targets,omitempty"`
@@ -35,6 +35,15 @@ type Config struct {
 type Target struct {
 	// Target URL of API
 	URL string `json:"url,omitempty"`
+
+	// API method
+	Method string `json:"method,omitempty"`
+
+	// Body value of API
+	Body map[string]string `json:"body,omitempty"`
+
+	// Header value of API
+	Header map[string]string `json:"header,omitempty"`
 }
 
 // Region configuration

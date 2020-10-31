@@ -18,11 +18,10 @@ package worker
 
 import (
 	"errors"
-	"sync"
-
-	"github.com/sirupsen/logrus"
+	"net/url"
 
 	"github.com/DevopsArtFactory/bigshot/code/lambda/env"
+	"github.com/DevopsArtFactory/bigshot/code/lambda/event"
 	"github.com/DevopsArtFactory/bigshot/pkg/constants"
 	"github.com/DevopsArtFactory/bigshot/pkg/shot"
 )
@@ -35,74 +34,66 @@ func NewWorker() *Worker {
 }
 
 // Run executes worker role
-func (w *Worker) Run(envs env.Env, targets []string, slackURL []string) error {
+func (w *Worker) Run(envs env.Env, evt event.Event) error {
 	if len(envs.RunType) == 0 {
 		envs.RunType = constants.DefaultShooter
 	}
-	return Shoot(envs.RunType, envs.Region, slackURL, targets)
+	return Shoot(envs.RunType, envs.Region, evt)
 }
 
 // RunTest executes worker role for test
-func (w *Worker) RunTest(workerType string, slackURL []string) error {
-	example := []string{
-		"https://weverse.io",
+func (w *Worker) RunTest(workerType string, slackURLs []string) error {
+	evts := []event.Event{
+		{
+			Target:    "https://www.google.com",
+			Method:    "GET",
+			SlackURLs: slackURLs,
+		},
+		{
+			Target:    "https://www.amazon.com",
+			Method:    "GET",
+			SlackURLs: slackURLs,
+		},
 	}
 
-	return Shoot(
-		workerType,
-		constants.DefaultRegion,
-		slackURL,
-		example,
-	)
+	for _, evt := range evts {
+		if err := Shoot(
+			workerType,
+			constants.DefaultRegion,
+			evt,
+		); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }
 
 // Shoot runs api
-func Shoot(t, region string, slackURL, targets []string) error {
-	if len(targets) == 0 {
+func Shoot(t, region string, evt event.Event) error {
+	if len(evt.Target) == 0 {
 		return errors.New("no target specified")
 	}
 
-	var wg sync.WaitGroup
-	input := make(chan error)
-	output := make(chan []error)
-	defer close(output)
-
-	go func(input chan error, output chan []error, wg *sync.WaitGroup) {
-		var ret []error
-		for err := range input {
-			if err != nil {
-				ret = append(ret, err)
-			}
-			wg.Done()
+	shooter := shot.NewShooter(t, region)
+	if shooter == nil {
+		return errors.New("cannot find the right shooter for lambda")
+	}
+	_, err := url.Parse(evt.Target)
+	if err == nil {
+		shooter.SetTarget(evt.Target)
+		shooter.SetMethod(evt.Method)
+		if evt.Body != nil {
+			shooter.SetBody(evt.Body)
 		}
-
-		output <- ret
-	}(input, output, &wg)
-
-	f := func(url string, ch chan error) {
-		shooter := shot.NewShooter(t, region)
-		if shooter == nil {
-			ch <- errors.New("cannot find the right shooter for lambda")
-			return
+		if evt.Header != nil {
+			shooter.SetHeader(evt.Header)
 		}
-		shooter.SetTarget(url)
 		shooter.SetRate(1)
-		shooter.SetSlackURL(slackURL)
-		err := shooter.Run()
-		ch <- err
-	}
-
-	for _, target := range targets {
-		wg.Add(1)
-		go f(target, input)
-	}
-	wg.Wait()
-	close(input)
-
-	result := <-output
-
-	for _, e := range result {
-		logrus.Error(e.Error())
+		shooter.SetSlackURL(evt.SlackURLs)
+		if err := shooter.Run(); err != nil {
+			return err
+		}
 	}
 
 	return nil

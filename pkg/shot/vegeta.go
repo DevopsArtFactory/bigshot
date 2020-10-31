@@ -35,6 +35,18 @@ type Vegeta struct {
 	Targeter vegeta.Targeter
 }
 
+func (v *Vegeta) SetMethod(s string) {
+	panic("implement me")
+}
+
+func (v *Vegeta) SetBody(m map[string]string) {
+	panic("implement me")
+}
+
+func (v *Vegeta) SetHeader(m map[string]string) {
+	panic("implement me")
+}
+
 // NewVegeta creates a new vegeta client
 func NewVegeta(region string) Shooter {
 	return &Vegeta{

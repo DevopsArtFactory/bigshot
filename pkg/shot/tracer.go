@@ -17,7 +17,9 @@ limitations under the License.
 package shot
 
 import (
+	"bytes"
 	"crypto/tls"
+	"encoding/json"
 	"fmt"
 	"html/template"
 	"net"
@@ -46,6 +48,9 @@ type Tracer struct {
 	Rate     int
 	Duration time.Duration
 	Target   string
+	Method   string
+	Body     map[string]string
+	Header   map[string]string
 	Protocol string
 	Region   string
 	SlackURL []string
@@ -104,9 +109,36 @@ func (t *Tracer) SetTarget(s string) {
 
 // Run starts to trace request
 func (t *Tracer) Run() error {
-	req, err := http.NewRequest("GET", t.Target, nil)
-	if err != nil {
-		return err
+	var bodyJSON string
+	var err error
+	if t.Body != nil {
+		b, err := json.Marshal(t.Body)
+		if err != nil {
+			return err
+		}
+
+		bodyJSON = string(b)
+	}
+
+	var req *http.Request
+	if len(bodyJSON) > 0 {
+		req, err = http.NewRequest(t.Method, t.Target, bytes.NewBuffer([]byte(bodyJSON)))
+		if err != nil {
+			return err
+		}
+	} else {
+		req, err = http.NewRequest(t.Method, t.Target, nil)
+		if err != nil {
+			return err
+		}
+	}
+
+	if t.Header != nil {
+		header := http.Header{}
+		for k, v := range t.Header {
+			header.Set(k, v)
+		}
+		req.Header = header
 	}
 
 	td := TracingData{}
@@ -359,6 +391,21 @@ func (t *Tracer) SetupTransport() error {
 // SetSlackURL set slack URL for notification
 func (t *Tracer) SetSlackURL(s []string) {
 	t.SlackURL = s
+}
+
+// SetMethod sets method of API
+func (t *Tracer) SetMethod(s string) {
+	t.Method = s
+}
+
+// SetBody sets body data
+func (t *Tracer) SetBody(m map[string]string) {
+	t.Body = m
+}
+
+// SetHeader sets body data
+func (t *Tracer) SetHeader(m map[string]string) {
+	t.Header = m
 }
 
 // NewTracer creates tracer test

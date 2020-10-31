@@ -14,28 +14,12 @@ See the License for the specific language governing permissions and
 limitations under the License.
 */
 
-package shot
+package event
 
-type Shooter interface {
-	SetRate(int)
-	SetTarget(string)
-	SetMethod(string)
-	SetBody(map[string]string)
-	SetHeader(map[string]string)
-	SetSlackURL([]string)
-	Run() error
-}
-
-// NewShooter returns new shooter
-func NewShooter(t, region string) Shooter {
-	switch t {
-	case "trace":
-		return NewTracer(region)
-	case "ping":
-		return NewPing(region)
-	case "vegeta":
-		return NewVegeta(region)
-	}
-
-	return nil
+type Event struct {
+	Target    string            `json:"target"`
+	Method    string            `json:"method"`
+	Body      map[string]string `json:"body,omitempty"`
+	Header    map[string]string `json:"header,omitempty"`
+	SlackURLs []string          `json:"slack_urls"`
 }

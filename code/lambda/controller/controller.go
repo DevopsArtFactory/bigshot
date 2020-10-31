@@ -18,6 +18,7 @@ package controller
 
 import (
 	"encoding/json"
+	"sync"
 	"time"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -51,7 +52,7 @@ func (c *Controller) Run(envs env.Env) error {
 
 // RunTest executes controller role for tes
 func (c *Controller) RunTest() error {
-	sample := "sample-templates"
+	sample := "sample-template"
 	region, err := builder.GetDefaultRegion(constants.DefaultProfile)
 	if err != nil {
 		return err
@@ -69,34 +70,83 @@ func (c *Controller) RunTest() error {
 // Trigger will invoke other regions' lambda
 func Trigger(item map[string]*dynamodb.AttributeValue) error {
 	regions := item["regions"]
+	interval := 30/len(regions.L) - 1
+	logrus.Infof("Interval: %d", interval)
 
-	var targets []string
-	for _, target := range item["targets"].L {
-		data := target.M
-		targets = append(targets, *data["url"].S)
-	}
+	var wg sync.WaitGroup
+	input := make(chan error)
+	output := make(chan []error)
+	defer close(output)
 
-	payload, err := json.Marshal(map[string][]string{
-		"targets":                 targets,
-		constants.BigShotSlackURL: {*item[constants.BigShotSlackURL].S},
-	})
-	if err != nil {
-		return err
-	}
-
-	interval := 300/len(regions.L) - 1
-
-	for _, region := range regions.L {
-		data := region.M
-		regionID := *data["region"].S
-		logrus.Infof("Lambda will be triggered in %s", regionID)
-
-		lambdaClient := client.NewLambdaClient(regionID)
-		if err := lambdaClient.Trigger(regionID, payload); err != nil {
-			logrus.Error(err.Error())
+	go func(input chan error, output chan []error, wg *sync.WaitGroup) {
+		var ret []error
+		for err := range input {
+			if err != nil {
+				ret = append(ret, err)
+			}
+			wg.Done()
 		}
 
-		time.Sleep(time.Duration(interval) * time.Second)
+		output <- ret
+	}(input, output, &wg)
+
+	var slackURLs []string
+	for _, slack := range item[constants.BigShotSlackURLs].SS {
+		slackURLs = append(slackURLs, *slack)
 	}
+
+	f := func(regionData map[string]*dynamodb.AttributeValue, target *dynamodb.AttributeValue, ch chan error) {
+		data := target.M
+		m := map[string]interface{}{
+			"target":                   *data["url"].S,
+			"method":                   *data["method"].S,
+			constants.BigShotSlackURLs: slackURLs,
+		}
+
+		if _, ok := data["body"]; ok {
+			body := map[string]string{}
+			for k, v := range data["body"].M {
+				body[k] = *v.S
+			}
+			m["body"] = body
+		}
+
+		if _, ok := data["header"]; ok {
+			header := map[string]string{}
+			for k, v := range data["header"].M {
+				header[k] = *v.S
+			}
+			m["header"] = header
+		}
+
+		payload, err := json.Marshal(m)
+		if err != nil {
+			ch <- err
+			return
+		}
+
+		regionID := *regionData["region"].S
+		logrus.Infof("Lambda will be triggered in %s: %s", regionID, *data["url"].S)
+
+		lambdaClient := client.NewLambdaClient(regionID)
+		err = lambdaClient.Trigger(regionID, payload)
+		ch <- err
+	}
+
+	for i, region := range regions.L {
+		regionData := region.M
+		for _, target := range item["targets"].L {
+			wg.Add(1)
+			go f(regionData, target, input)
+		}
+		wg.Wait()
+
+		logrus.Infof("region %s is done", *regionData["region"].S)
+
+		if i < len(regions.L)-1 {
+			time.Sleep(time.Duration(interval) * time.Second)
+		}
+	}
+
 	return nil
 }

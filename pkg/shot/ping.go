@@ -36,6 +36,18 @@ type Ping struct {
 	SlackURL []string
 }
 
+func (p *Ping) SetMethod(s string) {
+	panic("implement me")
+}
+
+func (p *Ping) SetBody(m map[string]string) {
+	panic("implement me")
+}
+
+func (p *Ping) SetHeader(m map[string]string) {
+	panic("implement me")
+}
+
 // NewPing creates ping test
 func NewPing(region string) Shooter {
 	return &Ping{

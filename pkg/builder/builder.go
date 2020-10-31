@@ -46,6 +46,33 @@ type Flags struct {
 	ZipFile   string `json:"zip_file"`
 }
 
+// Validate checks the validation of configuration
+func (b *Builder) Validate() error {
+	if b.Config == nil {
+		return nil
+	}
+
+	if len(b.Config.Targets) == 0 {
+		return errors.New("there is no targets to check")
+	}
+
+	if len(b.Config.Name) == 0 {
+		return errors.New("template name is required")
+	}
+
+	for _, target := range b.Config.Targets {
+		if !tools.IsStringInArray(target.Method, constants.AllowedMethods) {
+			return fmt.Errorf("method for API check is not allowed: %s", target.Method)
+		}
+
+		if target.Method == "GET" && len(target.Body) > 0 {
+			return errors.New("you cannot set body values to GET request")
+		}
+	}
+
+	return nil
+}
+
 // ValidateFlags checks validation of flags
 func ValidateFlags(flags Flags) error {
 	if len(flags.Region) > 0 && !tools.IsStringInArray(flags.Region, constants.AllAWSRegions) {

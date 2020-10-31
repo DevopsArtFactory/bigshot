@@ -87,8 +87,8 @@ const (
 	// HTTP means http protocol
 	HTTP = "HTTP"
 
-	// BigShotSlackURL
-	BigShotSlackURL = "slack_url"
+	// BigShotSlackURLs
+	BigShotSlackURLs = "slack_urls"
 )
 
 var (
@@ -117,6 +117,12 @@ var (
 
 	// AWSConfigPath is the file path of aws config
 	AWSConfigPath = HomeDir() + "/.aws/config"
+
+	// AllowedMethods means a list of methods allowed
+	AllowedMethods = []string{
+		"GET",
+		"POST",
+	}
 )
 
 // Get Home Directory

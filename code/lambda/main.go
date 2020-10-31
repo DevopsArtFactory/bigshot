@@ -20,21 +20,16 @@ import (
 	"context"
 	"flag"
 	"fmt"
-	"strings"
 
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/sirupsen/logrus"
 
 	"github.com/DevopsArtFactory/bigshot/code/lambda/controller"
 	"github.com/DevopsArtFactory/bigshot/code/lambda/env"
+	"github.com/DevopsArtFactory/bigshot/code/lambda/event"
 	"github.com/DevopsArtFactory/bigshot/code/lambda/worker"
 	"github.com/DevopsArtFactory/bigshot/pkg/constants"
 )
-
-type Event struct {
-	Targets  []string `json:"targets"`
-	SlackURL []string `json:"slack_url"`
-}
 
 type Flags struct {
 	Type     string
@@ -57,8 +52,9 @@ func main() {
 }
 
 // Lambda handler
-func HandleRequest(ctx context.Context, event Event) error {
-	if err := Run(event); err != nil {
+func HandleRequest(ctx context.Context, evt event.Event) error {
+	fmt.Println(evt)
+	if err := Run(evt); err != nil {
 		return err
 	}
 	return nil
@@ -82,7 +78,7 @@ func GetFlags() *Flags {
 }
 
 // Run executes main process of lambda
-func Run(event Event) error {
+func Run(evt event.Event) error {
 	envs := env.GetEnvs()
 
 	if len(envs.Region) == 0 {
@@ -94,7 +90,7 @@ func Run(event Event) error {
 	case constants.ControllerMode:
 		return controller.NewController().Run(envs)
 	case constants.WorkerMode:
-		return worker.NewWorker().Run(envs, event.Targets, event.SlackURL)
+		return worker.NewWorker().Run(envs, evt)
 	}
 
 	return nil
@@ -106,9 +102,12 @@ func RunTest(flags *Flags) error {
 	case constants.ControllerMode:
 		return controller.NewController().RunTest()
 	case constants.WorkerMode:
-		var slackURLs []string
-		slackURLs = strings.Split(flags.SlackURL, ",")
-		return worker.NewWorker().RunTest(flags.Type, slackURLs)
+		slackURL := flags.SlackURL
+		var slacks []string
+		if len(slackURL) > 0 {
+			slacks = append(slacks, slackURL)
+		}
+		return worker.NewWorker().RunTest(flags.Type, slacks)
 	}
 
 	return nil

@@ -105,13 +105,44 @@ func (d *DynamoDB) CreateItem(config schema.Config, tableName string) error {
 
 	var targets []*dynamodb.AttributeValue
 	for _, target := range config.Targets {
-		targets = append(targets, &dynamodb.AttributeValue{
+		t := dynamodb.AttributeValue{
 			M: map[string]*dynamodb.AttributeValue{
 				"url": {
 					S: aws.String(target.URL),
 				},
+				"method": {
+					S: aws.String(target.Method),
+				},
 			},
-		})
+		}
+
+		if target.Body != nil {
+			body := map[string]*dynamodb.AttributeValue{}
+			for k, v := range target.Body {
+				body[k] = &dynamodb.AttributeValue{
+					S: aws.String(v),
+				}
+			}
+
+			t.M["body"] = &dynamodb.AttributeValue{
+				M: body,
+			}
+		}
+
+		if target.Header != nil {
+			header := map[string]*dynamodb.AttributeValue{}
+			for k, v := range target.Header {
+				header[k] = &dynamodb.AttributeValue{
+					S: aws.String(v),
+				}
+			}
+
+			t.M["header"] = &dynamodb.AttributeValue{
+				M: header,
+			}
+		}
+
+		targets = append(targets, &t)
 	}
 
 	if len(targets) > 0 {
@@ -137,9 +168,9 @@ func (d *DynamoDB) CreateItem(config schema.Config, tableName string) error {
 		}
 	}
 
-	if len(config.SlackURL) > 0 {
-		input.Item[constants.BigShotSlackURL] = &dynamodb.AttributeValue{
-			S: aws.String(config.SlackURL),
+	if len(config.SlackURLs) > 0 {
+		input.Item[constants.BigShotSlackURLs] = &dynamodb.AttributeValue{
+			SS: aws.StringSlice(config.SlackURLs),
 		}
 	}
 
