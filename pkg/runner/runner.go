@@ -23,6 +23,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/DevopsArtFactory/bigshot/pkg/builder"
+	"github.com/DevopsArtFactory/bigshot/pkg/client"
 	"github.com/DevopsArtFactory/bigshot/pkg/constants"
 	"github.com/DevopsArtFactory/bigshot/pkg/generator"
 	"github.com/DevopsArtFactory/bigshot/pkg/schema"
@@ -46,6 +47,10 @@ func New(b *builder.Builder) *Runner {
 func (r *Runner) Init() error {
 	var wg sync.WaitGroup
 	logrus.Info("Initiate bigshot infrastructures")
+
+	if r.Builder.Config == nil {
+		return errors.New("configuration is required for initialization")
+	}
 
 	if err := r.SetGenerator(); err != nil {
 		return err
@@ -91,8 +96,7 @@ func (r *Runner) Init() error {
 	wg.Wait()
 	close(r.Generator.Channel.Input)
 
-	errors := <-r.Generator.Channel.Output
-	PrintErrors(errors)
+	PrintErrors(<-r.Generator.Channel.Output)
 
 	return nil
 }
@@ -138,6 +142,11 @@ func (r *Runner) Destroy() error {
 
 	errors := <-r.Generator.Channel.Output
 	PrintErrors(errors)
+
+	// Delete cloudwatch rules
+	if err := r.Delete(); err != nil {
+		return err
+	}
 
 	return nil
 }
@@ -216,57 +225,107 @@ func (r *Runner) UpdateTemplate(args []string) error {
 	return nil
 }
 
-// Run creates controller lambda function and cloudwatch rule to run
+// Run creates a cloudwatch rule to start bigshot
 func (r *Runner) Run() error {
-	var wg sync.WaitGroup
 	logrus.Info("Running bigshot infrastructures")
 
-	if err := r.SetGenerator(); err != nil {
+	region, err := builder.GetDefaultRegion(constants.DefaultProfile)
+	if err != nil {
 		return err
 	}
 
-	// Setup Controller
-	if r.Generator.Controller != nil {
-		err := r.Generator.Controller.Setup()
-		if err != nil {
+	cw := client.NewCloudWatchClient(region)
+	lambda := client.NewLambdaClient(region)
+
+	min := r.Builder.Flags.Interval / 60
+	cron := tools.CreateCronExpression(min)
+	name := tools.GenerateRuleName(region)
+
+	ruleArn, err := cw.PutRule(name, cron)
+	if err != nil {
+		return err
+	}
+	logrus.Infof("Cloudwatch rule is successfully created: %s", *ruleArn)
+
+	funcName := tools.GenerateNewWorkerName(region, constants.ControllerMode)
+	funcARN, err := lambda.GetFunctionARN(funcName)
+	if err != nil {
+		return err
+	}
+	logrus.Infof("Target lambda function is found %s", *funcARN)
+
+	if err := cw.PutTarget(name, funcARN); err != nil {
+		return err
+	}
+	logrus.Info("Attached the target function to the rule")
+
+	if err := lambda.AddPermission(*ruleArn, funcName); err != nil {
+		return err
+	}
+	logrus.Info("Permission is successfully granted")
+
+	logrus.Infof("Bigshot will be run every %d minutes", min)
+
+	return nil
+}
+
+// Stop stops a cloudwatch rule
+func (r *Runner) Stop() error {
+	logrus.Info("Stopping the bigshot rule")
+
+	region, err := builder.GetDefaultRegion(constants.DefaultProfile)
+	if err != nil {
+		return err
+	}
+
+	cw := client.NewCloudWatchClient(region)
+	rule := tools.GenerateRuleName(region)
+	logrus.Infof("Trying to disable rule: %s", rule)
+	if err := cw.DisableRule(rule); err != nil {
+		return err
+	}
+	logrus.Infof("Bigshot is successfully stop running: %s", rule)
+
+	return nil
+}
+
+// Delete removes a cloudwatch rule
+func (r *Runner) Delete() error {
+	logrus.Info("Deleting the bigshot rule")
+
+	region, err := builder.GetDefaultRegion(constants.DefaultProfile)
+	if err != nil {
+		return err
+	}
+
+	cw := client.NewCloudWatchClient(region)
+	lambda := client.NewLambdaClient(region)
+
+	funcName := tools.GenerateNewWorkerName(region, constants.ControllerMode)
+	if err := lambda.DeletePermission(funcName); err != nil {
+		return err
+	}
+	logrus.Info("Permission is successfully removed")
+
+	rule := tools.GenerateRuleName(region)
+	targets, err := cw.ListTargetsByRule(rule)
+	if err != nil {
+		return err
+	}
+	logrus.Infof("Targets are found: %d", len(targets))
+
+	if len(targets) > 0 {
+		if err := cw.RemoveTarget(rule, targets); err != nil {
 			return err
 		}
+
+		logrus.Infof("Trying to delete the rule: %s", rule)
 	}
 
-	openChannel := openChannel()
-	defer close(r.Generator.Channel.Output)
-
-	go openChannel(r.Generator.Channel, &wg)
-
-	createIAMRole := makeCreateIAMRoleFunc()
-	attachIAMPolicy := makeAttachIAMRolePolicyFunc()
-	createLambdaWorker := makeCreateLambdaWorkerFunc()
-
-	for _, w := range r.Generator.Workers {
-		wg.Add(1)
-		go createIAMRole(w, r.Generator.Channel.Input)
+	if err := cw.DeleteRule(rule); err != nil {
+		return err
 	}
-	wg.Wait()
-
-	tools.Wait(15, "Waiting %d seconds until IAM role is in effective...")
-
-	for _, w := range r.Generator.Workers {
-		wg.Add(1)
-		go attachIAMPolicy(w, r.Generator.Channel.Input)
-	}
-	wg.Wait()
-
-	for _, w := range r.Generator.Workers {
-		if w.Error == nil {
-			wg.Add(1)
-			go createLambdaWorker(w, r.Generator.Channel.Input)
-		}
-	}
-	wg.Wait()
-	close(r.Generator.Channel.Input)
-
-	errors := <-r.Generator.Channel.Output
-	PrintErrors(errors)
+	logrus.Infof("Rule is successfully deleted: %s", rule)
 
 	return nil
 }

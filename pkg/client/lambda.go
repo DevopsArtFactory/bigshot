@@ -176,3 +176,56 @@ func (l *Lambda) Trigger(region string, payload []byte) error {
 
 	return nil
 }
+
+// GetFunctionARN gets function ARN
+func (l Lambda) GetFunctionARN(name string) (*string, error) {
+	input := &lambda.GetFunctionInput{
+		FunctionName: aws.String(name),
+	}
+
+	result, err := l.Client.GetFunction(input)
+	if err != nil {
+		return nil, err
+	}
+
+	return result.Configuration.FunctionArn, nil
+}
+
+// AddPermission grants permission for cloudwatch rule to invoke lambda
+func (l Lambda) AddPermission(sourceArn, funcName string) error {
+	input := &lambda.AddPermissionInput{
+		Action:       aws.String("lambda:InvokeFunction"),
+		FunctionName: aws.String(funcName),
+		Principal:    aws.String("lambda.amazonaws.com"),
+		SourceArn:    aws.String(sourceArn),
+		StatementId:  aws.String(funcName),
+	}
+
+	_, err := l.Client.AddPermission(input)
+	if err != nil {
+		return err
+	}
+
+	return err
+}
+
+// DeletePermission removes permission from lambda
+func (l Lambda) DeletePermission(funcName string) error {
+	input := &lambda.RemovePermissionInput{
+		FunctionName: aws.String(funcName),
+		StatementId:  aws.String(funcName),
+	}
+
+	_, err := l.Client.RemovePermission(input)
+	if err != nil {
+		if aerr, ok := err.(awserr.Error); ok {
+			if aerr.Code() == lambda.ErrCodeResourceNotFoundException {
+				logrus.Warn(aerr.Message())
+				return nil
+			}
+		}
+		return err
+	}
+
+	return nil
+}

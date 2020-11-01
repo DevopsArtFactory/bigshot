@@ -25,6 +25,7 @@ import (
 	"time"
 
 	"github.com/sirupsen/logrus"
+	"github.com/google/uuid"
 
 	"github.com/DevopsArtFactory/bigshot/pkg/constants"
 )
@@ -129,6 +130,16 @@ func GenerateNewTableName() string {
 	return fmt.Sprintf("%s-metadata", constants.ControllerNamePrefix)
 }
 
+// GenerateRuleName generates a name for cloudwatch rule
+func GenerateRuleName(region string) string {
+	return fmt.Sprintf("bigshot-runner-%s", region)
+}
+
+// CreateCronExpression makes cron expression with interval
+func CreateCronExpression(interval int) string {
+	return fmt.Sprintf("rate(%d minutes)", interval)
+}
+
 // Wait runs empty timer
 func Wait(timer int64, formatMsg string) {
 	logrus.Infof(formatMsg, timer)
@@ -152,6 +163,11 @@ func ReadZipFile(path string) ([]byte, error) {
 	}
 
 	return contents, nil
+}
+
+// GenerateRandomName generates a random name
+func GenerateRandomName() string {
+	return uuid.New().String()
 }
 
 // RoundTime creates rounded time

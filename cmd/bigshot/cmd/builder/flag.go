@@ -80,6 +80,15 @@ var FlagRegistry = []Flag{
 		FlagAddMethod: "StringVar",
 		DefinedOn:     []string{"init", "update-code"},
 	},
+	{
+		Name:          "interval",
+		Shorthand:     "i",
+		Usage:         "time of interval to run bigshot in seconds",
+		Value:         aws.Int(300),
+		DefValue:      300,
+		FlagAddMethod: "IntVar",
+		DefinedOn:     []string{"run"},
+	},
 }
 
 // flag sets pflag.Flag with custom Flag struct

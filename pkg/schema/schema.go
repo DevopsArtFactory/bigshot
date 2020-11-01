@@ -21,6 +21,12 @@ type Config struct {
 	// Bigshot template name. This will be key of dynamodb table
 	Name string `yaml:"name"`
 
+	// Lambda execution timeout in seconds
+	Timeout int `yaml:"timeout"`
+
+	// Synthetic interval in seconds
+	Interval int `yaml:"interval"`
+
 	// List of slack URLs for alert
 	SlackURLs []string `yaml:"slack_urls"`
 

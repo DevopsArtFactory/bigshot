@@ -76,8 +76,15 @@ func (g *Generator) Init(flags builder.Flags, config *schema.Config) error {
 		return err
 	}
 
+	timeout := constants.DefaultTimeout
+	name := tools.GenerateRandomName()
+	if config != nil {
+		timeout = config.Timeout
+		name = config.Name
+	}
+
 	for _, region := range regions {
-		ws = append(ws, worker.New(region, zipFile))
+		ws = append(ws, worker.New(region, zipFile, timeout, name))
 	}
 
 	// Controller setup
@@ -88,7 +95,7 @@ func (g *Generator) Init(flags builder.Flags, config *schema.Config) error {
 
 	if cont != nil {
 		g.SetController(cont)
-		controllerWorker := worker.New(cont.GetRegion(), zipFile)
+		controllerWorker := worker.New(cont.GetRegion(), zipFile, timeout, name)
 		controllerWorker.SetMode(constants.ControllerMode)
 		if cont.Config != nil {
 			controllerWorker.SetTemplate(cont.Config.Name)

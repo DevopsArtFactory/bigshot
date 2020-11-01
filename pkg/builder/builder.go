@@ -44,6 +44,7 @@ type Flags struct {
 	Config    string `json:"config"`
 	AllRegion bool   `json:"all"`
 	ZipFile   string `json:"zip_file"`
+	Interval  int    `json:"interval"`
 }
 
 // Validate checks the validation of configuration
@@ -112,12 +113,26 @@ func CreateNewBuilder(flags Flags) (*Builder, error) {
 	return New(&config, flags), nil
 }
 
-// Create new builder
+// New creates a new builder
 func New(config *schema.Config, flags Flags) *Builder {
-	return &Builder{
+	return SetDefault(Builder{
 		Config: config,
 		Flags:  flags,
+	})
+}
+
+// SetDefault returns builder with default value
+func SetDefault(b Builder) *Builder {
+	if b.Config != nil {
+		if b.Config.Timeout == 0 {
+			b.Config.Timeout = constants.DefaultTimeout
+		}
+		if b.Config.Interval == 0 {
+			b.Config.Interval = constants.DefaultInterval
+		}
 	}
+
+	return &b
 }
 
 // GetFlags makes flags from command

@@ -32,14 +32,13 @@ import (
 	"text/tabwriter"
 	"time"
 
-	"github.com/olekukonko/tablewriter"
-	"golang.org/x/net/http2"
-
 	"github.com/DevopsArtFactory/bigshot/pkg/color"
 	"github.com/DevopsArtFactory/bigshot/pkg/constants"
 	"github.com/DevopsArtFactory/bigshot/pkg/slacker"
 	"github.com/DevopsArtFactory/bigshot/pkg/templates"
 	"github.com/DevopsArtFactory/bigshot/pkg/tools"
+	"github.com/olekukonko/tablewriter"
+	"golang.org/x/net/http2"
 )
 
 type Tracer struct {
@@ -197,7 +196,7 @@ func (t *Tracer) Run() error {
 		return err
 	}
 
-	if len(t.SlackURL) > 0 {
+	if len(t.SlackURL) > 0 && t.Result.Response.StatusCode != 200 {
 		if err := t.SendAlarm(); err != nil {
 			return err
 		}
@@ -241,10 +240,114 @@ func (t *Tracer) PrintResult() error {
 
 // SendAlarm sends slack alarm
 func (t *Tracer) SendAlarm() error {
+	var attachments []slacker.Attachment
+	var blocks []slacker.Block
 	slack := slacker.NewSlackClient()
 
+	// TODO: create chart and upload it to S3
+	//filePath := "output.png"
+	//if err := t.CreateChart(filePath); err != nil {
+	//	return err
+	//}
+
+	// title
+	blocks = append(blocks, slacker.Block{
+		Type: "section",
+		Text: &slacker.Text{
+			Type: "mrkdwn",
+			Text: fmt.Sprintf("*%s*", t.Name),
+		},
+	})
+
+	// divider
+	blocks = append(blocks, slacker.Block{
+		Type: "divider",
+	})
+
+	blocks = append(blocks, slacker.Block{
+		Type: "section",
+		Text: &slacker.Text{
+			Type: "mrkdwn",
+			Text: fmt.Sprintf("*Domain*: `%s`", t.Target),
+		},
+	})
+
+	blocks = append(blocks, slacker.Block{
+		Type: "section",
+		Text: &slacker.Text{
+			Type: "mrkdwn",
+			Text: fmt.Sprintf("*Connect IP*: `%s`", t.Result.TracingData.ConnectAddr),
+		},
+	})
+
+	blocks = append(blocks, slacker.Block{
+		Type: "section",
+		Text: &slacker.Text{
+			Type: "mrkdwn",
+			Text: fmt.Sprintf("*Status Code*: %d", t.Result.Response.StatusCode),
+		},
+	})
+
+	blocks = append(blocks, slacker.Block{
+		Type: "section",
+		Text: &slacker.Text{
+			Type: "mrkdwn",
+			Text: fmt.Sprintf("*Status Message*: %s", t.Result.Response.StatusMsg),
+		},
+	})
+
+	// divider
+	blocks = append(blocks, slacker.Block{
+		Type: "divider",
+	})
+
+	// Tracing Data
+	index := 1
+	var fields []slacker.Field
+	fields = append(fields, slacker.Field{
+		Title: fmt.Sprintf("[%d]DNS Lookup", index),
+		Value: t.Result.TracingData.DNSLookup.String(),
+		Short: true,
+	})
+	index++
+
+	fields = append(fields, slacker.Field{
+		Title: fmt.Sprintf("[%d]TCP Connection", index),
+		Value: t.Result.TracingData.TCPConnection.String(),
+		Short: true,
+	})
+	index++
+
+	if t.Protocol == constants.HTTPS {
+		fields = append(fields, slacker.Field{
+			Title: fmt.Sprintf("[%d]TLS Handshake", index),
+			Value: t.Result.TracingData.TLSHandShacking.String(),
+			Short: true,
+		})
+		index++
+	}
+
+	fields = append(fields, slacker.Field{
+		Title: fmt.Sprintf("[%d]Server Processing", index),
+		Value: t.Result.TracingData.ServerProcessing.String(),
+		Short: true,
+	})
+	index++
+
+	fields = append(fields, slacker.Field{
+		Title: fmt.Sprintf("[%d]Content Transfer", index),
+		Value: t.Result.TracingData.ContentTransfer.String(),
+		Short: true,
+	})
+
+	attachments = append(attachments, slacker.Attachment{
+		Color:  constants.ErrorColor,
+		Text: fmt.Sprintf("*Request Tracing result* - Total Time: %s", t.Result.TracingData.FinishRequest.String()),
+		Fields: fields,
+	})
+
 	for _, URL := range t.SlackURL {
-		if err := slack.SendMessageWithWebHook(fmt.Sprintf("tracer success: %s, target: `%s`", t.Region, t.Target), URL); err != nil {
+		if err := slack.SendMessageWithWebHook(attachments, blocks, URL); err != nil {
 			fmt.Println(err.Error())
 			return err
 		}

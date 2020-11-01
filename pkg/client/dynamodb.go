@@ -18,6 +18,7 @@ package client
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/awserr"
@@ -97,6 +98,12 @@ func (d *DynamoDB) CreateItem(config schema.Config, tableName string) error {
 		Item: map[string]*dynamodb.AttributeValue{
 			constants.DefaultPrimaryKey: {
 				S: aws.String(config.Name),
+			},
+			"interval": {
+				N: aws.String(strconv.Itoa(config.Interval)),
+			},
+			"timeout": {
+				N: aws.String(strconv.Itoa(config.Timeout)),
 			},
 		},
 		ReturnConsumedCapacity: aws.String("TOTAL"),

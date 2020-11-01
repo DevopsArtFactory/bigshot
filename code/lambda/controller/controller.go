@@ -18,6 +18,7 @@ package controller
 
 import (
 	"encoding/json"
+	"strconv"
 	"sync"
 	"time"
 
@@ -70,7 +71,12 @@ func (c *Controller) RunTest() error {
 // Trigger will invoke other regions' lambda
 func Trigger(item map[string]*dynamodb.AttributeValue) error {
 	regions := item["regions"]
-	interval := 30/len(regions.L) - 1
+	totalInterval, err := strconv.Atoi(*item["interval"].N)
+	if err != nil {
+		return err
+	}
+
+	interval := totalInterval/len(regions.L) - 1
 	logrus.Infof("Interval: %d", interval)
 
 	var wg sync.WaitGroup

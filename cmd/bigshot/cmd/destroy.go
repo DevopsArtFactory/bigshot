@@ -29,7 +29,7 @@ import (
 // Destroy bigshot resources
 func NewDestroyCommand() *cobra.Command {
 	return builder.NewCmd("destroy").
-		WithDescription("destroy all infrastructures for bigshot").
+		WithDescription("Destroy all infrastructures for bigshot").
 		SetFlags().
 		RunWithNoArgs(funcDestroy)
 }

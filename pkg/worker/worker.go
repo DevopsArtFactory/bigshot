@@ -33,17 +33,21 @@ type Worker struct {
 	RoleArn      *string
 	ZipFile      []byte
 	Template     string
+	AppName      string
+	Timeout      int
 	Error        error
 	LambdaClient *client.Lambda
 	IAMClient    *client.IAM
 }
 
 // New creates a new lambda for specific region
-func New(region string, zipFile []byte) *Worker {
+func New(region string, zipFile []byte, timeout int, name string) *Worker {
 	w := Worker{
 		Region:       region,
 		RoleArn:      nil,
 		Mode:         constants.WorkerMode,
+		Timeout:      timeout,
+		AppName:      name,
 		LambdaClient: client.NewLambdaClient(region),
 		IAMClient:    client.NewIAMClient(region),
 	}
@@ -111,7 +115,7 @@ func (w *Worker) AttachWorkerRolePolicy() error {
 
 // CreateWorker creates lambda
 func (w *Worker) CreateWorker() error {
-	workerConfig := config.GetBaseWorkerConfig(w.Region, w.Mode, w.Template, w.RoleArn, w.ZipFile)
+	workerConfig := config.GetBaseWorkerConfig(w.Region, w.Mode, w.Template, w.RoleArn, w.ZipFile, w.Timeout)
 
 	_, err := w.LambdaClient.CreateFunction(workerConfig)
 	if err != nil {
@@ -158,7 +162,7 @@ func (w *Worker) DeleteWorker() error {
 // UpdateWorkerCode updates lambda
 func (w *Worker) UpdateWorkerCode() error {
 	funcName := tools.GenerateNewWorkerName(w.Region, w.Mode)
-	workerConfig := config.GetBaseWorkerConfig(w.Region, w.Mode, w.Template, w.RoleArn, w.ZipFile)
+	workerConfig := config.GetBaseWorkerConfig(w.Region, w.Mode, w.Template, w.RoleArn, w.ZipFile, w.Timeout)
 
 	if workerConfig.ZipFile != nil {
 		if err := w.LambdaClient.UpdateFunctionCode(funcName, workerConfig.ZipFile); err != nil {
@@ -173,7 +177,7 @@ func (w *Worker) UpdateWorkerCode() error {
 
 // UpdateWorkerTemplate updates lambda
 func (w *Worker) UpdateWorkerTemplate(c *schema.Config) error {
-	workerConfig := config.GetBaseWorkerConfig(w.Region, w.Mode, w.Template, w.RoleArn, w.ZipFile)
+	workerConfig := config.GetBaseWorkerConfig(w.Region, w.Mode, w.Template, w.RoleArn, w.ZipFile, w.Timeout)
 
 	if err := w.LambdaClient.UpdateTemplate(workerConfig); err != nil {
 		return err

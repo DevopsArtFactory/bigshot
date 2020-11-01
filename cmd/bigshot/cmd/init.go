@@ -29,7 +29,7 @@ import (
 // Initialize bigshot resources
 func NewInitCommand() *cobra.Command {
 	return builder.NewCmd("init").
-		WithDescription("initialize infrastructures for bigshot").
+		WithDescription("Initialize infrastructures for bigshot").
 		SetFlags().
 		RunWithNoArgs(funcInit)
 }

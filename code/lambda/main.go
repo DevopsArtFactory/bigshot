@@ -20,7 +20,6 @@ import (
 	"context"
 	"flag"
 	"fmt"
-
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/sirupsen/logrus"
 

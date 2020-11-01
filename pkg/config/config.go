@@ -40,7 +40,7 @@ type Config struct {
 }
 
 // GetBaseWorkerConfig returns base lambda configuration
-func GetBaseWorkerConfig(region, mode, template string, roleArn *string, zipFile []byte) Config {
+func GetBaseWorkerConfig(region, mode, template string, roleArn *string, zipFile []byte, timeout int) Config {
 	env := GetEnvironmentVariables(region, mode, template)
 	cf := Config{
 		Name:                 tools.GenerateNewWorkerName(region, mode),
@@ -52,7 +52,7 @@ func GetBaseWorkerConfig(region, mode, template string, roleArn *string, zipFile
 		Role:                 roleArn,
 		Publish:              true,
 		Runtime:              constants.GoRunTime,
-		Timeout:              int64(300),
+		Timeout:              int64(timeout),
 	}
 	if zipFile != nil {
 		cf.ZipFile = zipFile

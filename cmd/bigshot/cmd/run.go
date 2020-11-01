@@ -29,7 +29,7 @@ import (
 // Run bigshot
 func NewRunCommand() *cobra.Command {
 	return builder.NewCmd("run").
-		WithDescription("Run bigshot for api checking").
+		WithDescription("Start to run bigshot for api checking").
 		SetFlags().
 		RunWithNoArgs(funcRun)
 }
@@ -37,7 +37,7 @@ func NewRunCommand() *cobra.Command {
 // funcRun
 func funcRun(ctx context.Context, _ io.Writer) error {
 	return executor.RunExecutor(ctx, func(executor executor.Executor) error {
-		if err := executor.Runner.Init(); err != nil {
+		if err := executor.Runner.Run(); err != nil {
 			return err
 		}
 		return nil

@@ -19,14 +19,13 @@ package slacker
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/DevopsArtFactory/bigshot/pkg/constants"
 	"net/http"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/sirupsen/logrus"
 	"github.com/slack-go/slack"
-
-	"github.com/DevopsArtFactory/bigshot/pkg/constants"
 )
 
 type Slack struct {
@@ -69,15 +68,11 @@ func NewSlackClient() Slack {
 }
 
 // SendMessageWithWebhook is for WebhookURL
-func (s *Slack) SendMessageWithWebHook(msg, url string) error {
+func (s *Slack) SendMessageWithWebHook(attachments []Attachment, blocks []Block, url string) error {
 	logrus.Infof("slack target is set: %s", url)
 	slackBody, _ := json.Marshal(Body{
-		Attachments: []Attachment{
-			{
-				Text:  msg,
-				Color: s.Color,
-			},
-		},
+		Attachments: attachments,
+		Blocks: blocks,
 	})
 
 	return sendSlackRequest(slackBody, url)

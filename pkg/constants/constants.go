@@ -87,6 +87,15 @@ const (
 	// HTTP means http protocol
 	HTTP = "HTTP"
 
+	// DefaultTimeout is default lambda execution timeout
+	DefaultTimeout = 300
+
+	// DefaultInterval is default synthetics interval
+	DefaultInterval = 300
+
+	// ErrorColor is red color
+	ErrorColor = "#ff0000"
+
 	// BigShotSlackURLs
 	BigShotSlackURLs = "slack_urls"
 )
