@@ -31,13 +31,13 @@ func NewDestroyCommand() *cobra.Command {
 	return builder.NewCmd("destroy").
 		WithDescription("Destroy all infrastructures for bigshot").
 		SetFlags().
-		RunWithNoArgs(funcDestroy)
+		RunWithArgs(funcDestroy)
 }
 
 // funcDestroy
-func funcDestroy(ctx context.Context, _ io.Writer) error {
+func funcDestroy(ctx context.Context, _ io.Writer, args []string) error {
 	return executor.RunExecutor(ctx, func(executor executor.Executor) error {
-		if err := executor.Runner.Destroy(); err != nil {
+		if err := executor.Runner.Destroy(args); err != nil {
 			return err
 		}
 

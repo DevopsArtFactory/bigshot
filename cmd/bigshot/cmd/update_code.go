@@ -29,15 +29,15 @@ import (
 // Update bigshot code
 func NewUpdateCodeCommand() *cobra.Command {
 	return builder.NewCmd("update-code").
-		WithDescription("update code of lambda and controller for bigshot").
+		WithDescription("update code of lambda and workermanager for bigshot").
 		SetFlags().
-		RunWithNoArgs(funcUpdateCode)
+		RunWithArgs(funcUpdateCode)
 }
 
 // funcUpdateCode
-func funcUpdateCode(ctx context.Context, _ io.Writer) error {
+func funcUpdateCode(ctx context.Context, _ io.Writer, args []string) error {
 	return executor.RunExecutor(ctx, func(executor executor.Executor) error {
-		if err := executor.Runner.UpdateCode(); err != nil {
+		if err := executor.Runner.UpdateCode(args); err != nil {
 			return err
 		}
 		return nil

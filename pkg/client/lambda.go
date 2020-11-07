@@ -159,8 +159,8 @@ func (l Lambda) UpdateTemplate(config config.Config) error {
 }
 
 // Trigger will invoke lambda function
-func (l *Lambda) Trigger(region string, payload []byte) error {
-	functionName := tools.GenerateNewWorkerName(region, constants.WorkerMode)
+func (l *Lambda) Trigger(region string, template string, payload []byte) error {
+	functionName := tools.GenerateNewWorkerName(region, template, constants.WorkerMode)
 
 	input := &lambda.InvokeInput{
 		FunctionName: aws.String(functionName),

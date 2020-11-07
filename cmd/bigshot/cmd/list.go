@@ -38,7 +38,7 @@ func NewListCommand() *cobra.Command {
 // funcList
 func funcList(ctx context.Context, _ io.Writer) error {
 	return executor.RunExecutor(ctx, func(executor executor.Executor) error {
-		if err := executor.Runner.Run(); err != nil {
+		if err := executor.Runner.List(); err != nil {
 			return err
 		}
 		return nil

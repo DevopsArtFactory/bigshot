@@ -72,3 +72,21 @@ func (c *Controller) Setup() error {
 	logrus.Debug("Controller setup is finished")
 	return nil
 }
+
+func Run(template string) error {
+	region, err := builder.GetDefaultRegion(constants.DefaultProfile)
+	if err != nil {
+		return err
+	}
+
+	dynamoDB := client.NewDynamoDBClient(region)
+
+	item, err := dynamoDB.GetTemplate(template, tools.GenerateNewTableName())
+	if err != nil {
+		return err
+	}
+
+	logrus.Info(item)
+
+	return nil
+}

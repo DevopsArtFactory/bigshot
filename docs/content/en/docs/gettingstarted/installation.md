@@ -48,4 +48,4 @@ The latest stable binary can be found here:
 
 https://devopsartfactory.s3.ap-northeast-2.amazonaws.com/bigshot/releasees/latest/bigshot-windows-amd64.exe
 
-Simply download it and place it in your PATH as goployer.exe.
+Simply download it and place it in your PATH as bigshot.exe.

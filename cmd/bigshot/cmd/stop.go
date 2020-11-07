@@ -31,13 +31,13 @@ func NewStopCommand() *cobra.Command {
 	return builder.NewCmd("stop").
 		WithDescription("Stop running bigshot for api checking").
 		SetFlags().
-		RunWithNoArgs(funcStop)
+		RunWithArgs(funcStop)
 }
 
 // funcStop
-func funcStop(ctx context.Context, _ io.Writer) error {
+func funcStop(ctx context.Context, _ io.Writer, args []string) error {
 	return executor.RunExecutor(ctx, func(executor executor.Executor) error {
-		if err := executor.Runner.Stop(); err != nil {
+		if err := executor.Runner.Stop(args); err != nil {
 			return err
 		}
 		return nil

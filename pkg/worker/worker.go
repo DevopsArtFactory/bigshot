@@ -35,19 +35,21 @@ type Worker struct {
 	Template     string
 	AppName      string
 	Timeout      int
+	DryRun       bool
 	Error        error
 	LambdaClient *client.Lambda
 	IAMClient    *client.IAM
 }
 
 // New creates a new lambda for specific region
-func New(region string, zipFile []byte, timeout int, name string) *Worker {
+func New(region string, zipFile []byte, timeout int, name string, dryRun bool) *Worker {
 	w := Worker{
 		Region:       region,
 		RoleArn:      nil,
 		Mode:         constants.WorkerMode,
 		Timeout:      timeout,
 		AppName:      name,
+		DryRun:       dryRun,
 		LambdaClient: client.NewLambdaClient(region),
 		IAMClient:    client.NewIAMClient(region),
 	}
@@ -69,7 +71,7 @@ func (w *Worker) SetMode(mode string) {
 	w.Mode = mode
 }
 
-// SetTemplate sets template of controller
+// SetTemplate sets template of workermanager
 func (w *Worker) SetTemplate(template string) {
 	logrus.Debugf("Template is set with %s", template)
 	w.Template = template
@@ -77,7 +79,12 @@ func (w *Worker) SetTemplate(template string) {
 
 // CreateWorkerRole creates lambdaRole
 func (w *Worker) CreateWorkerRole() error {
-	roleName := tools.GenerateNewLambdaRoleName(w.Region)
+	roleName := tools.GenerateNewLambdaRoleName(w.Region, w.AppName)
+
+	if w.DryRun {
+		logrus.Infof("[%s]IAM role will be created: %s", w.Region, roleName)
+		return nil
+	}
 
 	roleArn, err := w.IAMClient.FindIamRoleForLambda(roleName)
 	if err != nil {
@@ -91,12 +98,19 @@ func (w *Worker) CreateWorkerRole() error {
 		}
 	}
 
+	logrus.Infof("IAM role for lambda is ready in %s", w.GetRegion())
+
 	return nil
 }
 
 // AttachWorkerRolePolicy attaches IAM Policy to IAM role
 func (w *Worker) AttachWorkerRolePolicy() error {
-	roleName := tools.GenerateNewLambdaRoleName(w.Region)
+	roleName := tools.GenerateNewLambdaRoleName(w.Region, w.AppName)
+
+	if w.DryRun {
+		logrus.Infof("[%s]Lambda STS Policy will be attached to the role: %s", w.Region, roleName)
+		return nil
+	}
 
 	err := w.IAMClient.AttachIAMPolicy(roleName)
 	if err != nil {
@@ -110,24 +124,33 @@ func (w *Worker) AttachWorkerRolePolicy() error {
 
 	w.RoleArn = roleArn
 
+	logrus.Infof("IAM role policy is successfully attached in %s", w.GetRegion())
+
 	return nil
 }
 
 // CreateWorker creates lambda
 func (w *Worker) CreateWorker() error {
-	workerConfig := config.GetBaseWorkerConfig(w.Region, w.Mode, w.Template, w.RoleArn, w.ZipFile, w.Timeout)
+	workerConfig := config.GetBaseWorkerConfig(w.Region, w.Mode, w.AppName, w.RoleArn, w.ZipFile, w.Timeout)
+
+	if w.DryRun {
+		logrus.Infof("[%s]Lambda worker will be created: %s", w.Region, workerConfig.Name)
+		return nil
+	}
 
 	_, err := w.LambdaClient.CreateFunction(workerConfig)
 	if err != nil {
 		return err
 	}
 
+	logrus.Infof("Worker function is ready in %s", w.GetRegion())
+
 	return nil
 }
 
 // DeleteWorkerRole deletes a lambdaRole
 func (w *Worker) DeleteWorkerRole() error {
-	roleName := tools.GenerateNewLambdaRoleName(w.Region)
+	roleName := tools.GenerateNewLambdaRoleName(w.Region, w.AppName)
 
 	err := w.IAMClient.DeleteIamRoleForLambda(roleName)
 	if err != nil {
@@ -139,7 +162,7 @@ func (w *Worker) DeleteWorkerRole() error {
 
 // DetachWorkerRolePolicy detaches IAM Policy from IAM role
 func (w *Worker) DetachWorkerRolePolicy() error {
-	roleName := tools.GenerateNewLambdaRoleName(w.Region)
+	roleName := tools.GenerateNewLambdaRoleName(w.Region, w.AppName)
 
 	err := w.IAMClient.DetachIAMPolicy(roleName)
 	if err != nil {
@@ -151,7 +174,7 @@ func (w *Worker) DetachWorkerRolePolicy() error {
 
 // DeleteWorker creates lambda
 func (w *Worker) DeleteWorker() error {
-	err := w.LambdaClient.DeleteFunction(tools.GenerateNewWorkerName(w.Region, w.Mode))
+	err := w.LambdaClient.DeleteFunction(tools.GenerateNewWorkerName(w.Region, w.AppName, w.Mode))
 	if err != nil {
 		return err
 	}
@@ -161,7 +184,7 @@ func (w *Worker) DeleteWorker() error {
 
 // UpdateWorkerCode updates lambda
 func (w *Worker) UpdateWorkerCode() error {
-	funcName := tools.GenerateNewWorkerName(w.Region, w.Mode)
+	funcName := tools.GenerateNewWorkerName(w.Region, w.AppName, w.Mode)
 	workerConfig := config.GetBaseWorkerConfig(w.Region, w.Mode, w.Template, w.RoleArn, w.ZipFile, w.Timeout)
 
 	if workerConfig.ZipFile != nil {

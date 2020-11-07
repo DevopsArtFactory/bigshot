@@ -69,6 +69,8 @@ type Response struct {
 
 type TracingData struct {
 	// Real time
+	URL 				string
+	ConnectAddr          string
 	DNSStart             time.Time
 	DNSDone              time.Time
 	TLSHandshakeStart    time.Time
@@ -78,7 +80,6 @@ type TracingData struct {
 	GotConn              time.Time
 	GetFirstResponseBtye time.Time
 	FinishRequest        time.Time
-	ConnectAddr          string
 
 	// Stat
 	DNSLookup        time.Duration
@@ -140,7 +141,10 @@ func (t *Tracer) Run() error {
 		req.Header = header
 	}
 
-	td := TracingData{}
+	td := TracingData{
+		URL: t.Target,
+	}
+
 	trace := &httptrace.ClientTrace{
 		DNSStart:          func(dsi httptrace.DNSStartInfo) { td.DNSStart = time.Now() },
 		DNSDone:           func(ddi httptrace.DNSDoneInfo) { td.DNSDone = time.Now() },
@@ -342,7 +346,7 @@ func (t *Tracer) SendAlarm() error {
 
 	attachments = append(attachments, slacker.Attachment{
 		Color:  constants.ErrorColor,
-		Text: fmt.Sprintf("*Request Tracing result* - Total Time: %s", t.Result.TracingData.FinishRequest.String()),
+		Text:   fmt.Sprintf("*Request Tracing result* - Total Time: %s", t.Result.TracingData.FinishRequest.String()),
 		Fields: fields,
 	})
 

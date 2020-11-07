@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/sirupsen/logrus"
 	"github.com/google/uuid"
+	"github.com/sirupsen/logrus"
 
 	"github.com/DevopsArtFactory/bigshot/pkg/constants"
 )
@@ -111,18 +111,18 @@ func Formatting(i interface{}) interface{} {
 }
 
 // GenerateNewWorkerName generates a new name for lambda function
-func GenerateNewWorkerName(region, mode string) string {
-	return fmt.Sprintf("%s-%s-%s", constants.CommonNamePrefix, mode, region)
+func GenerateNewWorkerName(region, name, mode string) string {
+	return fmt.Sprintf("%s-%s-%s-%s", constants.CommonNamePrefix, name, region, mode)
 }
 
 // GenerateNewLambdaRoleName generates a new role name for lambda function
-func GenerateNewLambdaRoleName(region string) string {
-	return fmt.Sprintf("%s-%s", constants.CommonNamePrefix, region)
+func GenerateNewLambdaRoleName(region, name string) string {
+	return fmt.Sprintf("%s-%s-%s", constants.CommonNamePrefix, name, region)
 }
 
 // GenerateDescription generates a description for lambda function
 func GenerateDescription(region string) string {
-	return fmt.Sprintf("Bigshot lambda in %s", region)
+	return fmt.Sprintf("Bigshot lambda worker in %s", region)
 }
 
 // GenerateNewTableName generates a new name for lambda function
@@ -131,8 +131,8 @@ func GenerateNewTableName() string {
 }
 
 // GenerateRuleName generates a name for cloudwatch rule
-func GenerateRuleName(region string) string {
-	return fmt.Sprintf("bigshot-runner-%s", region)
+func GenerateRuleName(region, name string) string {
+	return fmt.Sprintf("bigshot-run-%s-%s", name, region)
 }
 
 // CreateCronExpression makes cron expression with interval
@@ -170,21 +170,7 @@ func GenerateRandomName() string {
 	return uuid.New().String()
 }
 
-// RoundTime creates rounded time
-func RoundTime(d time.Duration) string {
-	var r float64
-	var suffix string
-	switch {
-	case d > time.Minute:
-		r = d.Minutes()
-		suffix = "m"
-	case d > time.Second:
-		r = d.Seconds()
-		suffix = "s"
-	default:
-		r = float64(d.Milliseconds())
-		suffix = "ms"
-	}
-
-	return fmt.Sprintf("%.2f%s", r, suffix)
+// JoinString joins strings in the slice
+func JoinString(arr []string, delimiter string) string {
+	return strings.Join(arr, delimiter)
 }

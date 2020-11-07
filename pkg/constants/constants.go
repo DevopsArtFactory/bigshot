@@ -75,11 +75,11 @@ const (
 	// DefaultProfile indicates default profile
 	DefaultProfile = "default"
 
-	// WorkerMode indicates lambda mode
+	// WorkerMode indicates lambda function
 	WorkerMode = "lambda"
 
-	// ControllerMode indicates controller mode
-	ControllerMode = "controller"
+	// ManagerMode indicates worker manager function
+	ManagerMode = "manager"
 
 	// HTTPS means https protocol
 	HTTPS = "HTTPS"
@@ -98,6 +98,15 @@ const (
 
 	// BigShotSlackURLs
 	BigShotSlackURLs = "slack_urls"
+
+	/*
+		Server Setting
+	*/
+	// DefaultServerAddr indicates the default hostname for server
+	DefaultServerAddr = "localhost"
+
+	// DefaultServerPort indicates the default server port
+	DefaultServerPort = int64(8765)
 )
 
 var (

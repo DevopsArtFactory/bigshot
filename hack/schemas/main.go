@@ -1,5 +1,5 @@
 /*
-copyright 2020 the Goployer authors
+copyright 2020 the bigshot authors
 
 licensed under the apache license, version 2.0 (the "license");
 you may not use this file except in compliance with the license.

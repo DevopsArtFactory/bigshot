@@ -31,13 +31,13 @@ func NewDeleteCommand() *cobra.Command {
 	return builder.NewCmd("delete").
 		WithDescription("Delete the bigshot rule for api checking").
 		SetFlags().
-		RunWithNoArgs(funcDelete)
+		RunWithArgs(funcDelete)
 }
 
 // funcDelete
-func funcDelete(ctx context.Context, _ io.Writer) error {
+func funcDelete(ctx context.Context, _ io.Writer, args []string) error {
 	return executor.RunExecutor(ctx, func(executor executor.Executor) error {
-		if err := executor.Runner.Delete(); err != nil {
+		if err := executor.Runner.Delete(args); err != nil {
 			return err
 		}
 		return nil

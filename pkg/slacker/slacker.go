@@ -72,7 +72,7 @@ func (s *Slack) SendMessageWithWebHook(attachments []Attachment, blocks []Block,
 	logrus.Infof("slack target is set: %s", url)
 	slackBody, _ := json.Marshal(Body{
 		Attachments: attachments,
-		Blocks: blocks,
+		Blocks:      blocks,
 	})
 
 	return sendSlackRequest(slackBody, url)
