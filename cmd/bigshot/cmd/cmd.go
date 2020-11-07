@@ -71,8 +71,10 @@ func NewRootCommand(out, stderr io.Writer) *cobra.Command {
 	rootCmd.AddCommand(NewStopCommand())
 	rootCmd.AddCommand(NewDeleteCommand())
 	rootCmd.AddCommand(NewDestroyCommand())
+	rootCmd.AddCommand(NewListCommand())
 	rootCmd.AddCommand(NewCmdCompletion())
 	rootCmd.AddCommand(NewCmdVersion())
+	rootCmd.AddCommand(NewServerCommand())
 
 	rootCmd.PersistentFlags().StringVarP(&v, "verbosity", "v", constants.DefaultLogLevel.String(), "Log level (debug, info, warn, error, fatal, panic)")
 

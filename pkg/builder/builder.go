@@ -35,8 +35,9 @@ import (
 )
 
 type Builder struct {
-	Config *schema.Config
-	Flags  Flags
+	Config        *schema.Config
+	Flags         Flags
+	DefaultRegion string
 }
 
 type Flags struct {
@@ -45,6 +46,7 @@ type Flags struct {
 	AllRegion bool   `json:"all"`
 	ZipFile   string `json:"zip_file"`
 	Interval  int    `json:"interval"`
+	DryRun    bool   `json:"dry_run"`
 }
 
 // Validate checks the validation of configuration
@@ -89,18 +91,34 @@ func ValidateFlags(flags Flags) error {
 
 // CreateNewBuilder creates new builder
 func CreateNewBuilder(flags Flags) (*Builder, error) {
-	var config schema.Config
+	var config *schema.Config
+
+	region, err := GetDefaultRegion(constants.DefaultProfile)
+	if err != nil {
+		return nil, err
+	}
 
 	if len(flags.Config) == 0 {
 		logrus.Debug("You have no config file")
-		return New(nil, flags), nil
+		return New(config, flags, region), nil
 	}
 
 	if !tools.FileExists(flags.Config) {
 		return nil, fmt.Errorf("configuration file does not exist: %s", flags.Config)
 	}
 
-	file, err := ioutil.ReadFile(flags.Config)
+	config, err = ParseConfig(flags.Config)
+	if err != nil {
+		return nil, err
+	}
+
+	return New(config, flags, region), nil
+}
+
+// ParseConfig parses configuration file
+func ParseConfig(configFile string) (*schema.Config, error) {
+	var config *schema.Config
+	file, err := ioutil.ReadFile(configFile)
 	if err != nil {
 		return nil, err
 	}
@@ -110,14 +128,15 @@ func CreateNewBuilder(flags Flags) (*Builder, error) {
 		return nil, err
 	}
 
-	return New(&config, flags), nil
+	return config, nil
 }
 
 // New creates a new builder
-func New(config *schema.Config, flags Flags) *Builder {
+func New(config *schema.Config, flags Flags, region string) *Builder {
 	return SetDefault(Builder{
-		Config: config,
-		Flags:  flags,
+		Config:        config,
+		Flags:         flags,
+		DefaultRegion: region,
 	})
 }
 

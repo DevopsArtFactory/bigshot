@@ -23,10 +23,10 @@ import (
 	"github.com/aws/aws-lambda-go/lambda"
 	"github.com/sirupsen/logrus"
 
-	"github.com/DevopsArtFactory/bigshot/code/lambda/controller"
 	"github.com/DevopsArtFactory/bigshot/code/lambda/env"
 	"github.com/DevopsArtFactory/bigshot/code/lambda/event"
 	"github.com/DevopsArtFactory/bigshot/code/lambda/worker"
+	"github.com/DevopsArtFactory/bigshot/code/lambda/workermanager"
 	"github.com/DevopsArtFactory/bigshot/pkg/constants"
 )
 
@@ -52,7 +52,6 @@ func main() {
 
 // Lambda handler
 func HandleRequest(ctx context.Context, evt event.Event) error {
-	fmt.Println(evt)
 	if err := Run(evt); err != nil {
 		return err
 	}
@@ -86,8 +85,8 @@ func Run(evt event.Event) error {
 	logrus.Infof("this is lambda function in %s", envs.Region)
 
 	switch envs.Mode {
-	case constants.ControllerMode:
-		return controller.NewController().Run(envs)
+	case constants.ManagerMode:
+		return workermanager.New().Run(envs)
 	case constants.WorkerMode:
 		return worker.NewWorker().Run(envs, evt)
 	}
@@ -98,8 +97,8 @@ func Run(evt event.Event) error {
 // RunTest executes main process of lambda for test
 func RunTest(flags *Flags) error {
 	switch flags.Mode {
-	case constants.ControllerMode:
-		return controller.NewController().RunTest()
+	case constants.ManagerMode:
+		return workermanager.New().RunTest()
 	case constants.WorkerMode:
 		slackURL := flags.SlackURL
 		var slacks []string

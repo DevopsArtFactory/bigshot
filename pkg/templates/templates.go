@@ -17,10 +17,44 @@ limitations under the License.
 package templates
 
 // TracingTemplate is a template for aws provider
-const TracingTemplate = `{{ decorate "bold" "Check IP" }}: {{ format .Summary.TracingData.ConnectAddr }}
+const TracingTemplate = `{{ decorate "bold" "Domain" }}: {{ format .Summary.TracingData.URL }}
+{{ decorate "bold" "Check IP" }}: {{ format .Summary.TracingData.ConnectAddr }}
 {{ decorate "bold" "Status Code" }}: {{ format .Summary.Response.StatusCode }}
 {{ decorate "bold" "Status Message" }}: {{ format .Summary.Response.StatusMsg }}
-{{- range $key, $val := .Summary.Response.Header }}
-{{ decorate "bold" $key }}: {{ format $val }}
+`
+
+// ListTemplate is a template of listing bigshot worker settings
+const ListTemplate = `{{ decorate "bold underline" "List" }}
+{{- range $item := .Summary }} 
+====================================================
+{{ decorate "bold" "Name" }}: {{ format $item.Name }}
+{{ decorate "bold" "Timeout" }}: {{ format $item.Timeout }}
+{{ decorate "bold" "Interval" }}: {{ format $item.Interval }}
+{{ decorate "bold" "Regions" }}
+{{- if eq (len $item.Regions ) 0 }}
+  No worker exists
+{{- else }}
+  {{- range $region := $item.Regions }}
+    - {{ format $region.Region }}
+  {{- end }}
+{{- end }}
+
+{{ decorate "bold" "Targets" }}
+{{- if eq (len $item.Targets ) 0 }}
+  No url is targeted
+{{- else }}
+  {{- range $target := $item.Targets }}
+    - {{ format $target.Method }} {{ format $target.URL }}
+  {{- end }}
+{{- end }}
+
+{{ decorate "bold" "SlackURLs" }}
+{{- if eq (len $item.SlackURLs ) 0 }}
+No slack alarm exists
+{{- else }}
+  {{- range $alarm := $item.SlackURLs }}
+    - {{ format $alarm }}
+  {{- end }}
+{{- end }}
 {{- end }}
 `

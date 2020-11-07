@@ -54,13 +54,21 @@ var FlagRegistry = []Flag{
 		DefinedOn:     []string{"init", "update-template"},
 	},
 	{
+		Name:          "dry-run",
+		Usage:         "Run command with dry-run option, which will not create real resource",
+		Value:         aws.Bool(false),
+		DefValue:      false,
+		FlagAddMethod: "BoolVar",
+		DefinedOn:     []string{"init"},
+	},
+	{
 		Name:          "region",
 		Shorthand:     "r",
 		Usage:         "Run command to specific region",
 		Value:         aws.String(constants.EmptyString),
 		DefValue:      constants.EmptyString,
 		FlagAddMethod: "StringVar",
-		DefinedOn:     []string{"init", "destroy", "update-code"},
+		DefinedOn:     []string{"destroy", "update-code"},
 	},
 	{
 		Name:          "all",
@@ -69,7 +77,7 @@ var FlagRegistry = []Flag{
 		Value:         aws.Bool(false),
 		DefValue:      false,
 		FlagAddMethod: "BoolVar",
-		DefinedOn:     []string{"init", "destroy", "update-code"},
+		DefinedOn:     []string{"destroy", "update-code"},
 	},
 	{
 		Name:          "zip-file",

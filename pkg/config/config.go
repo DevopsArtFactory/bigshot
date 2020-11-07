@@ -40,10 +40,10 @@ type Config struct {
 }
 
 // GetBaseWorkerConfig returns base lambda configuration
-func GetBaseWorkerConfig(region, mode, template string, roleArn *string, zipFile []byte, timeout int) Config {
-	env := GetEnvironmentVariables(region, mode, template)
+func GetBaseWorkerConfig(region, mode, appName string, roleArn *string, zipFile []byte, timeout int) Config {
+	env := GetEnvironmentVariables(region, mode, appName)
 	cf := Config{
-		Name:                 tools.GenerateNewWorkerName(region, mode),
+		Name:                 tools.GenerateNewWorkerName(region, appName, mode),
 		Description:          tools.GenerateDescription(region),
 		EnvironmentVariables: env,
 		Handler:              "out/code/lambda/handler",
@@ -71,7 +71,7 @@ func GetEnvironmentVariables(region, mode, template string) map[string]*string {
 		"mode":   aws.String(mode),
 	}
 
-	if len(template) > 0 && mode == constants.ControllerMode {
+	if len(template) > 0 && mode == constants.ManagerMode {
 		env["template"] = aws.String(template)
 	}
 

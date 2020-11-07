@@ -31,13 +31,13 @@ func NewRunCommand() *cobra.Command {
 	return builder.NewCmd("run").
 		WithDescription("Start to run bigshot for api checking").
 		SetFlags().
-		RunWithNoArgs(funcRun)
+		RunWithArgs(funcRun)
 }
 
 // funcRun
-func funcRun(ctx context.Context, _ io.Writer) error {
+func funcRun(ctx context.Context, _ io.Writer, args []string) error {
 	return executor.RunExecutor(ctx, func(executor executor.Executor) error {
-		if err := executor.Runner.Run(); err != nil {
+		if err := executor.Runner.Run(args); err != nil {
 			return err
 		}
 		return nil

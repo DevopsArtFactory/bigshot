@@ -18,15 +18,26 @@ package runner
 
 import (
 	"errors"
+	"fmt"
+	"html/template"
+	"net/http"
+	"os"
+	"strconv"
 	"sync"
+	"text/tabwriter"
 
+	"github.com/AlecAivazis/survey/v2"
+	"github.com/aws/aws-sdk-go/service/dynamodb"
 	"github.com/sirupsen/logrus"
 
 	"github.com/DevopsArtFactory/bigshot/pkg/builder"
 	"github.com/DevopsArtFactory/bigshot/pkg/client"
+	"github.com/DevopsArtFactory/bigshot/pkg/color"
 	"github.com/DevopsArtFactory/bigshot/pkg/constants"
 	"github.com/DevopsArtFactory/bigshot/pkg/generator"
 	"github.com/DevopsArtFactory/bigshot/pkg/schema"
+	"github.com/DevopsArtFactory/bigshot/pkg/server"
+	"github.com/DevopsArtFactory/bigshot/pkg/templates"
 	"github.com/DevopsArtFactory/bigshot/pkg/tools"
 	"github.com/DevopsArtFactory/bigshot/pkg/worker"
 )
@@ -79,7 +90,9 @@ func (r *Runner) Init() error {
 	}
 	wg.Wait()
 
-	tools.Wait(15, "Waiting %d seconds until IAM role is in effective...")
+	if !r.Builder.Flags.DryRun {
+		tools.Wait(15, "Waiting %d seconds until IAM role is in effective...")
+	}
 
 	for _, w := range r.Generator.Workers {
 		wg.Add(1)
@@ -96,15 +109,27 @@ func (r *Runner) Init() error {
 	wg.Wait()
 	close(r.Generator.Channel.Input)
 
+	if err := r.CreateTrigger(r.Builder.Config); err != nil {
+
+	}
+
 	PrintErrors(<-r.Generator.Channel.Output)
 
 	return nil
 }
 
 // Destroy deletes all resources of bigshot
-func (r *Runner) Destroy() error {
+func (r *Runner) Destroy(args []string) error {
 	var wg sync.WaitGroup
-	logrus.Info("Destroying bigshot infrastructures")
+
+	name, err := r.GetTargetFunctionName(args)
+	if err != nil {
+		return err
+	}
+	logrus.Infof("Destroying bigshot infrastructures: %s", name)
+
+	// name update
+	r.OverrideName(name)
 
 	if err := r.SetGenerator(); err != nil {
 		return err
@@ -140,11 +165,10 @@ func (r *Runner) Destroy() error {
 	wg.Wait()
 	close(r.Generator.Channel.Input)
 
-	errors := <-r.Generator.Channel.Output
-	PrintErrors(errors)
+	PrintErrors(<-r.Generator.Channel.Output)
 
 	// Delete cloudwatch rules
-	if err := r.Delete(); err != nil {
+	if err := r.Delete([]string{name}); err != nil {
 		return err
 	}
 
@@ -152,9 +176,17 @@ func (r *Runner) Destroy() error {
 }
 
 // UpdateCode updates global lambda function code
-func (r *Runner) UpdateCode() error {
+func (r *Runner) UpdateCode(args []string) error {
+	name, err := r.GetTargetFunctionName(args)
+	if err != nil {
+		return err
+	}
+	logrus.Infof("Running bigshot infrastructures: %s", name)
+
 	var wg sync.WaitGroup
 	logrus.Info("Update code of bigshot infrastructures")
+
+	r.OverrideName(name)
 
 	if err := r.SetGenerator(); err != nil {
 		return err
@@ -182,13 +214,13 @@ func (r *Runner) UpdateCode() error {
 	return nil
 }
 
-// UpdateTemplate updates template of controller
+// UpdateTemplate updates template of workermanager
 func (r *Runner) UpdateTemplate(args []string) error {
 	if len(args) != 1 && (len(args) == 0 && len(r.Builder.Flags.Config) == 0) {
 		return errors.New("change name of template: bigshot update-template <template-name>\nchange template config: bigshot update-template --config=config.yaml")
 	}
 
-	logrus.Info("Update template of bigshot controller")
+	logrus.Info("Update template of bigshot workermanager")
 
 	if r.Builder.Config == nil {
 		r.Builder.Config = &schema.Config{
@@ -215,7 +247,7 @@ func (r *Runner) UpdateTemplate(args []string) error {
 	}
 
 	for _, w := range r.Generator.Workers {
-		if w.Mode == constants.ControllerMode {
+		if w.Mode == constants.ManagerMode {
 			if err := w.UpdateWorkerTemplate(r.Builder.Config); err != nil {
 				return err
 			}
@@ -225,10 +257,19 @@ func (r *Runner) UpdateTemplate(args []string) error {
 	return nil
 }
 
-// Run creates a cloudwatch rule to start bigshot
-func (r *Runner) Run() error {
-	logrus.Info("Running bigshot infrastructures")
+// Run triggers a single worker manager
+func (r *Runner) Run(args []string) error {
+	name, err := r.GetTargetFunctionName(args)
+	if err != nil {
+		return err
+	}
+	logrus.Infof("Running bigshot infrastructures: %s", name)
 
+	return nil
+}
+
+// CreateTrigger creates a cloudwatch rule to start bigshot
+func (r *Runner) CreateTrigger(config *schema.Config) error {
 	region, err := builder.GetDefaultRegion(constants.DefaultProfile)
 	if err != nil {
 		return err
@@ -237,24 +278,24 @@ func (r *Runner) Run() error {
 	cw := client.NewCloudWatchClient(region)
 	lambda := client.NewLambdaClient(region)
 
-	min := r.Builder.Flags.Interval / 60
+	min := config.Interval / 60
 	cron := tools.CreateCronExpression(min)
-	name := tools.GenerateRuleName(region)
+	ruleName := tools.GenerateRuleName(region, config.Name)
 
-	ruleArn, err := cw.PutRule(name, cron)
+	ruleArn, err := cw.PutRule(ruleName, cron)
 	if err != nil {
 		return err
 	}
 	logrus.Infof("Cloudwatch rule is successfully created: %s", *ruleArn)
 
-	funcName := tools.GenerateNewWorkerName(region, constants.ControllerMode)
+	funcName := tools.GenerateNewWorkerName(region, config.Name, constants.ManagerMode)
 	funcARN, err := lambda.GetFunctionARN(funcName)
 	if err != nil {
 		return err
 	}
 	logrus.Infof("Target lambda function is found %s", *funcARN)
 
-	if err := cw.PutTarget(name, funcARN); err != nil {
+	if err := cw.PutTarget(ruleName, funcARN); err != nil {
 		return err
 	}
 	logrus.Info("Attached the target function to the rule")
@@ -270,8 +311,12 @@ func (r *Runner) Run() error {
 }
 
 // Stop stops a cloudwatch rule
-func (r *Runner) Stop() error {
-	logrus.Info("Stopping the bigshot rule")
+func (r *Runner) Stop(args []string) error {
+	name, err := r.GetTargetFunctionName(args)
+	if err != nil {
+		return err
+	}
+	logrus.Infof("Stopping the bigshot rule: %s", name)
 
 	region, err := builder.GetDefaultRegion(constants.DefaultProfile)
 	if err != nil {
@@ -279,7 +324,7 @@ func (r *Runner) Stop() error {
 	}
 
 	cw := client.NewCloudWatchClient(region)
-	rule := tools.GenerateRuleName(region)
+	rule := tools.GenerateRuleName(region, name)
 	logrus.Infof("Trying to disable rule: %s", rule)
 	if err := cw.DisableRule(rule); err != nil {
 		return err
@@ -290,8 +335,22 @@ func (r *Runner) Stop() error {
 }
 
 // Delete removes a cloudwatch rule
-func (r *Runner) Delete() error {
-	logrus.Info("Deleting the bigshot rule")
+func (r *Runner) Delete(args []string) error {
+	name, err := r.GetTargetFunctionName(args)
+	if err != nil {
+		return err
+	}
+
+	if len(name) == 0 {
+		return errors.New("please choose or specify the worker name")
+	}
+	logrus.Infof("Deleting the bigshot rule: %s", name)
+
+	if err := r.SetGenerator(); err != nil {
+		return err
+	}
+
+	r.OverrideName(name)
 
 	region, err := builder.GetDefaultRegion(constants.DefaultProfile)
 	if err != nil {
@@ -301,13 +360,13 @@ func (r *Runner) Delete() error {
 	cw := client.NewCloudWatchClient(region)
 	lambda := client.NewLambdaClient(region)
 
-	funcName := tools.GenerateNewWorkerName(region, constants.ControllerMode)
+	funcName := tools.GenerateNewWorkerName(region, name, constants.ManagerMode)
 	if err := lambda.DeletePermission(funcName); err != nil {
 		return err
 	}
 	logrus.Info("Permission is successfully removed")
 
-	rule := tools.GenerateRuleName(region)
+	rule := tools.GenerateRuleName(region, name)
 	targets, err := cw.ListTargetsByRule(rule)
 	if err != nil {
 		return err
@@ -330,9 +389,153 @@ func (r *Runner) Delete() error {
 	return nil
 }
 
+// List shows the worker status
+func (r *Runner) List() error {
+	names, err := r.FindAllNames()
+	if err != nil {
+		return err
+	}
+
+	if len(names) == 0 {
+		fmt.Println("No worker exists")
+		return nil
+	}
+
+	if err := r.PrintSummaryTemplates(names); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// RunServer runs bigshot workermanager as server
+func (r *Runner) RunServer() error {
+	logrus.Infof("Booting up bigshot server")
+	s := server.New()
+	s.SetDefaultSetting()
+	s.SetRouter()
+
+	logrus.Infof("Server setting is done")
+
+	addr := s.GetAddr()
+	logrus.Infof("Start bigshot server")
+	if err := http.ListenAndServe(addr, s.Router); err != nil {
+		logrus.Errorf(err.Error())
+	}
+	logrus.Infof("Shutting down bigshot server")
+
+	return nil
+}
+
+// PrintSummary prints summary of template
+func (r *Runner) PrintSummaryTemplates(names []string) error {
+	dynamoDB := client.NewDynamoDBClient(r.Builder.DefaultRegion)
+	var configs []*schema.Config
+	for _, name := range names {
+		item, err := dynamoDB.GetTemplate(name, tools.GenerateNewTableName())
+		if err != nil {
+			return err
+		}
+
+		conf, err := mapConfig(item)
+		if err != nil {
+			return err
+		}
+
+		configs = append(configs, conf)
+	}
+
+	if err := PrintTemplate(configs); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// PrintTemplate prints the summary of templates
+func PrintTemplate(configs []*schema.Config) error {
+	var data = struct {
+		Summary []*schema.Config
+	}{
+		Summary: configs,
+	}
+
+	funcMap := template.FuncMap{
+		"decorate": color.DecorateAttr,
+		"format":   tools.Formatting,
+		"join":     tools.JoinString,
+	}
+
+	w := tabwriter.NewWriter(os.Stdout, 0, 5, 3, ' ', tabwriter.TabIndent)
+	t := template.Must(template.New("Template Information").Funcs(funcMap).Parse(templates.ListTemplate))
+
+	err := t.Execute(w, data)
+	if err != nil {
+		return err
+	}
+
+	return w.Flush()
+}
+
+// mapConfig maps configuration with dynamodb itme
+func mapConfig(item map[string]*dynamodb.AttributeValue) (*schema.Config, error) {
+	var err error
+	conf := schema.Config{}
+	for k, v := range item {
+		switch k {
+		case "name":
+			conf.Name = *v.S
+		case "interval":
+			conf.Interval, _ = strconv.Atoi(*v.N)
+		case "regions":
+			var regions []schema.Region
+			for _, region := range v.L {
+				regions = append(regions, regionConfig(*region.M["region"].S))
+			}
+			conf.Regions = regions
+		case "slack_urls":
+			var slackURLs []string
+			for _, url := range v.SS {
+				slackURLs = append(slackURLs, *url)
+			}
+			conf.SlackURLs = slackURLs
+		case "targets":
+			var targets []schema.Target
+			for _, target := range v.L {
+				targets = append(targets, targetConfig(*target.M["method"].S, *target.M["url"].S))
+			}
+			conf.Targets = targets
+		case "timeout":
+			conf.Timeout, err = strconv.Atoi(*v.N)
+			if err != nil {
+				return nil, err
+			}
+		}
+	}
+
+	return &conf, nil
+}
+
+// regionConfig creates region config struct
+func regionConfig(region string) schema.Region {
+	return schema.Region{
+		Region: region,
+	}
+}
+
+// targetConfig creates target config struct
+func targetConfig(method, url string) schema.Target {
+	return schema.Target{
+		Method: method,
+		URL:    url,
+	}
+}
+
 // SetGenerator setup a new Generator
 func (r *Runner) SetGenerator() error {
 	gn := generator.New()
+
+	checkDryRun(r.Builder.Flags.DryRun)
 
 	err := gn.Init(r.Builder.Flags, r.Builder.Config)
 	if err != nil {
@@ -342,6 +545,13 @@ func (r *Runner) SetGenerator() error {
 	r.Generator = gn
 
 	return nil
+}
+
+// checkDryRun will check if this command is dry-run or not
+func checkDryRun(dryRun bool) {
+	if dryRun {
+		logrus.Info("Dry run mode enabled")
+	}
 }
 
 // openChannel opens channel with input
@@ -365,7 +575,6 @@ func makeCreateIAMRoleFunc() func(w *worker.Worker, ch chan error) {
 			ch <- err
 			return
 		}
-		logrus.Infof("IAM role for lambda is ready in %s", w.GetRegion())
 		ch <- nil
 	}
 }
@@ -378,7 +587,6 @@ func makeAttachIAMRolePolicyFunc() func(w *worker.Worker, ch chan error) {
 			ch <- err
 			return
 		}
-		logrus.Infof("IAM role policy is successfully attached in %s", w.GetRegion())
 		ch <- nil
 	}
 }
@@ -390,7 +598,6 @@ func makeCreateLambdaWorkerFunc() func(w *worker.Worker, ch chan error) {
 			w.Error = err
 			ch <- err
 		}
-		logrus.Infof("Worker function is ready in %s", w.GetRegion())
 		ch <- nil
 	}
 }
@@ -449,4 +656,57 @@ func PrintErrors(errors []error) {
 			logrus.Errorf(err.Error())
 		}
 	}
+}
+
+// GetTargetFunctionName returns target function name
+func (r *Runner) GetTargetFunctionName(args []string) (string, error) {
+	if len(args) > 1 {
+		return constants.EmptyString, errors.New("only one argument is required")
+	}
+
+	if len(args) == 1 {
+		return args[0], nil
+	}
+
+	names, err := r.FindAllNames()
+	if err != nil {
+		return constants.EmptyString, err
+	}
+
+	target := constants.EmptyString
+	prompt := &survey.Select{
+		Message: "Pick worker name:",
+		Options: names,
+	}
+	survey.AskOne(prompt, &target)
+
+	if len(target) == 0 {
+		return constants.EmptyString, errors.New("please choose or specify the worker name")
+	}
+
+	return target, nil
+}
+
+// FindAllNames means finding names in slice of string
+func (r *Runner) FindAllNames() ([]string, error) {
+	tableName := tools.GenerateNewTableName()
+	dynamodb := client.NewDynamoDBClient(r.Builder.DefaultRegion)
+	names, err := dynamodb.GetAllNames(tableName)
+	if err != nil {
+		return nil, err
+	}
+
+	return names, nil
+}
+
+// OverrideName will override the configuration name
+func (r *Runner) OverrideName(name string) {
+	if r.Builder.Config == nil {
+		r.Builder.Config = &schema.Config{
+			Name: name,
+		}
+
+		return
+	}
+	r.Builder.Config.Name = name
 }

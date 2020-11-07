@@ -71,7 +71,7 @@ func (g *Generator) Init(flags builder.Flags, config *schema.Config) error {
 		}
 	}
 
-	regions, err := GetTargetRegions(flags.Region, flags.AllRegion, false)
+	regions, err := GetRegions(config, flags.AllRegion)
 	if err != nil {
 		return err
 	}
@@ -84,28 +84,51 @@ func (g *Generator) Init(flags builder.Flags, config *schema.Config) error {
 	}
 
 	for _, region := range regions {
-		ws = append(ws, worker.New(region, zipFile, timeout, name))
+		ws = append(ws, worker.New(region, zipFile, timeout, name, flags.DryRun))
 	}
 
 	// Controller setup
-	cont, err := controller.New(config)
-	if err != nil {
-		return err
-	}
-
-	if cont != nil {
-		g.SetController(cont)
-		controllerWorker := worker.New(cont.GetRegion(), zipFile, timeout, name)
-		controllerWorker.SetMode(constants.ControllerMode)
-		if cont.Config != nil {
-			controllerWorker.SetTemplate(cont.Config.Name)
+	if config != nil {
+		cont, err := controller.New(config)
+		if err != nil {
+			return err
 		}
-		ws = append(ws, controllerWorker)
+
+		if cont != nil {
+			g.SetController(cont)
+			controllerWorker := worker.New(cont.GetRegion(), zipFile, timeout, name, flags.DryRun)
+			controllerWorker.SetMode(constants.ManagerMode)
+			controllerWorker.SetTemplate(cont.Config.Name)
+			ws = append(ws, controllerWorker)
+		}
 	}
 
 	g.SetWorkers(ws)
 
 	return nil
+}
+
+// GetRegions retrieves region list from tis list
+func GetRegions(config *schema.Config, allRegion bool) ([]string, error) {
+	if allRegion {
+		return constants.AllAWSRegions, nil
+	}
+
+	var regions []string
+	if config == nil {
+		defaultRegion, err := builder.GetDefaultRegion(constants.DefaultProfile)
+		if err != nil {
+			return nil, err
+		}
+		regions = append(regions, defaultRegion)
+		return regions, nil
+	}
+
+	for _, region := range config.Regions {
+		regions = append(regions, region.Region)
+	}
+
+	return regions, nil
 }
 
 // SetWorkers sets lambda structures
@@ -118,7 +141,7 @@ func (g *Generator) SetController(c *controller.Controller) {
 	g.Controller = c
 }
 
-// getTargetRegions  returns target regions for workers
+// getTargetRegions returns target regions for workers
 func GetTargetRegions(specified string, applyAllRegion, isTest bool) ([]string, error) {
 	var targetRegions []string
 	var err error

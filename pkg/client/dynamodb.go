@@ -213,3 +213,32 @@ func (d *DynamoDB) GetTemplate(name, tableName string) (map[string]*dynamodb.Att
 
 	return result.Item, nil
 }
+
+// GetAllNames retrieves all names of bigshot template
+func (d *DynamoDB) GetAllNames(table string) ([]string, error) {
+	items, err := d.Scan(table)
+	if err != nil {
+		return nil, err
+	}
+
+	var names []string
+	for _, item := range items {
+		names = append(names, *item["name"].S)
+	}
+
+	return names, nil
+}
+
+// Scan retrieves all dynamoDB data
+func (d *DynamoDB) Scan(tableName string) ([]map[string]*dynamodb.AttributeValue, error) {
+	input := &dynamodb.ScanInput{
+		TableName: aws.String(tableName),
+	}
+
+	result, err := d.Client.Scan(input)
+	if err != nil {
+		return nil, err
+	}
+
+	return result.Items, nil
+}

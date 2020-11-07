@@ -4,7 +4,6 @@ go 1.14
 
 require (
 	github.com/AlecAivazis/survey/v2 v2.1.1
-	github.com/DevopsArtFactory/goployer v0.0.0-20201026223647-203ecd50827a // indirect
 	github.com/aws/aws-lambda-go v1.19.1
 	github.com/aws/aws-sdk-go v1.35.5
 	github.com/fatih/color v1.9.0
@@ -21,7 +20,7 @@ require (
 	github.com/spf13/pflag v1.0.5
 	github.com/spf13/viper v1.7.1
 	github.com/tsenart/vegeta/v12 v12.8.4
-	github.com/wcharczuk/go-chart v2.0.2-0.20191206192251-962b9abdec2b+incompatible
+	github.com/wcharczuk/go-chart v2.0.2-0.20191206192251-962b9abdec2b+incompatible // indirect
 	golang.org/x/image v0.0.0-20200927104501-e162460cd6b5 // indirect
 	golang.org/x/net v0.0.0-20201024042810-be3efd7ff127
 	golang.org/x/sys v0.0.0-20201022201747-fb209a7c41cd // indirect

@@ -29,7 +29,7 @@ import (
 // Update bigshot template
 func NewUpdateTemplateCommand() *cobra.Command {
 	return builder.NewCmd("update-template").
-		WithDescription("update template of controller for bigshot").
+		WithDescription("update template of workermanager for bigshot").
 		SetFlags().
 		RunWithArgs(funcUpdateTemplate)
 }
