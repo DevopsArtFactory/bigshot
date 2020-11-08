@@ -97,6 +97,14 @@ var FlagRegistry = []Flag{
 		FlagAddMethod: "IntVar",
 		DefinedOn:     []string{"run"},
 	},
+	{
+		Name:          "log-file",
+		Usage:         "Log file for bigshot server",
+		Value:         aws.String(constants.EmptyString),
+		DefValue:      constants.EmptyString,
+		FlagAddMethod: "StringVar",
+		DefinedOn:     []string{"server"},
+	},
 }
 
 // flag sets pflag.Flag with custom Flag struct

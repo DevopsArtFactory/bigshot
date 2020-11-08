@@ -21,6 +21,8 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"fmt"
+	"github.com/DevopsArtFactory/bigshot/pkg/client"
+	"github.com/DevopsArtFactory/bigshot/pkg/schema"
 	"html/template"
 	"net"
 	"net/http"
@@ -32,13 +34,14 @@ import (
 	"text/tabwriter"
 	"time"
 
+	"github.com/olekukonko/tablewriter"
+	"golang.org/x/net/http2"
+
 	"github.com/DevopsArtFactory/bigshot/pkg/color"
 	"github.com/DevopsArtFactory/bigshot/pkg/constants"
 	"github.com/DevopsArtFactory/bigshot/pkg/slacker"
 	"github.com/DevopsArtFactory/bigshot/pkg/templates"
 	"github.com/DevopsArtFactory/bigshot/pkg/tools"
-	"github.com/olekukonko/tablewriter"
-	"golang.org/x/net/http2"
 )
 
 type Tracer struct {
@@ -53,41 +56,7 @@ type Tracer struct {
 	Protocol string
 	Region   string
 	SlackURL []string
-	Result   Result
-}
-
-type Result struct {
-	TracingData TracingData
-	Response    Response
-}
-
-type Response struct {
-	StatusCode int
-	StatusMsg  string
-	Header     map[string][]string
-}
-
-type TracingData struct {
-	// Real time
-	URL 				string
-	ConnectAddr          string
-	DNSStart             time.Time
-	DNSDone              time.Time
-	TLSHandshakeStart    time.Time
-	TLSHandshakeDone     time.Time
-	ConnectionStart      time.Time
-	ConnectionDone       time.Time
-	GotConn              time.Time
-	GetFirstResponseBtye time.Time
-	FinishRequest        time.Time
-
-	// Stat
-	DNSLookup        time.Duration
-	TCPConnection    time.Duration
-	TLSHandShacking  time.Duration
-	ServerProcessing time.Duration
-	ContentTransfer  time.Duration
-	Total            time.Duration
+	Result   schema.Result
 }
 
 // SetRate sets rate of request
@@ -141,7 +110,7 @@ func (t *Tracer) Run() error {
 		req.Header = header
 	}
 
-	td := TracingData{
+	td := schema.TracingData{
 		URL: t.Target,
 	}
 
@@ -206,13 +175,17 @@ func (t *Tracer) Run() error {
 		}
 	}
 
+	if err := t.SaveData(); err != nil {
+		return err
+	}
+
 	return nil
 }
 
 // PrintResult prints result
 func (t *Tracer) PrintResult() error {
 	var scanData = struct {
-		Summary Result
+		Summary schema.Result
 	}{
 		Summary: t.Result,
 	}
@@ -361,8 +334,8 @@ func (t *Tracer) SendAlarm() error {
 }
 
 // SetResult sets the result to Tracker.Result
-func (t *Tracer) SetResult(td TracingData, response *http.Response) error {
-	res := Response{}
+func (t *Tracer) SetResult(td schema.TracingData, response *http.Response) error {
+	res := schema.Response{}
 	var err error
 
 	// Parse status code
@@ -382,7 +355,7 @@ func (t *Tracer) SetResult(td TracingData, response *http.Response) error {
 
 	td = Calculated(td, t.Protocol == constants.HTTPS)
 
-	t.Result = Result{
+	t.Result = schema.Result{
 		TracingData: td,
 		Response:    res,
 	}
@@ -427,7 +400,7 @@ func (t *Tracer) DrawResultTable() error {
 }
 
 // Calculated calculates the durations of each step
-func Calculated(td TracingData, tls bool) TracingData {
+func Calculated(td schema.TracingData, tls bool) schema.TracingData {
 	td.DNSLookup = td.DNSDone.Sub(td.DNSStart)
 	td.TCPConnection = td.ConnectionDone.Sub(td.ConnectionStart)
 	if tls {
@@ -492,6 +465,16 @@ func (t *Tracer) SetupTransport() error {
 	}
 
 	t.Attacker.Transport = tr
+	return nil
+}
+
+// SaveData saves data to time-series database
+func (t *Tracer) SaveData() error {
+	writer := client.NewTimeStreamClient(constants.DefaultRegion)
+	if err := writer.WriteData("bigshot", "synthetics", t.Region, t.Protocol, t.Result); err != nil {
+		return err
+	}
+
 	return nil
 }
 

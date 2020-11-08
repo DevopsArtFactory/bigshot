@@ -55,7 +55,6 @@ func (w *WorkerManager) RunTest() error {
 	sample := "base-production"
 	region, err := builder.GetDefaultRegion(constants.DefaultProfile)
 	if err != nil {
-
 		return err
 	}
 

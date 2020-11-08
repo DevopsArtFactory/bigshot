@@ -43,10 +43,11 @@ type Builder struct {
 type Flags struct {
 	Region    string `json:"region"`
 	Config    string `json:"config"`
-	AllRegion bool   `json:"all"`
 	ZipFile   string `json:"zip_file"`
-	Interval  int    `json:"interval"`
+	LogFile   string `json:"log_file"`
+	AllRegion bool   `json:"all"`
 	DryRun    bool   `json:"dry_run"`
+	Interval  int    `json:"interval"`
 }
 
 // Validate checks the validation of configuration

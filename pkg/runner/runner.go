@@ -110,7 +110,7 @@ func (r *Runner) Init() error {
 	close(r.Generator.Channel.Input)
 
 	if err := r.CreateTrigger(r.Builder.Config); err != nil {
-
+		return err
 	}
 
 	PrintErrors(<-r.Generator.Channel.Output)
@@ -412,14 +412,17 @@ func (r *Runner) List() error {
 func (r *Runner) RunServer() error {
 	logrus.Infof("Booting up bigshot server")
 	s := server.New()
-	s.SetDefaultSetting()
 	s.SetRouter()
+
+	if err := s.SetDefaultSetting(r.Builder.Flags.LogFile); err != nil {
+		return err
+	}
 
 	logrus.Infof("Server setting is done")
 
 	addr := s.GetAddr()
 	logrus.Infof("Start bigshot server")
-	if err := http.ListenAndServe(addr, s.Router); err != nil {
+	if err := http.ListenAndServe(addr, server.Wrapper(s.Router)); err != nil {
 		logrus.Errorf(err.Error())
 	}
 	logrus.Infof("Shutting down bigshot server")

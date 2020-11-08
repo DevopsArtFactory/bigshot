@@ -21,6 +21,7 @@ import (
 	"io/ioutil"
 	"os"
 	"reflect"
+	"strconv"
 	"strings"
 	"time"
 
@@ -173,4 +174,14 @@ func GenerateRandomName() string {
 // JoinString joins strings in the slice
 func JoinString(arr []string, delimiter string) string {
 	return strings.Join(arr, delimiter)
+}
+
+// IntToString changes int to string
+func IntToString(n int) string {
+	return strconv.Itoa(n)
+}
+
+// Int64ToString changes int to string
+func Int64ToString(n int64) string {
+	return strconv.Itoa(int(n))
 }
