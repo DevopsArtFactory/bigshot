@@ -17,13 +17,6 @@ limitations under the License.
 package client
 
 import (
-	"github.com/DevopsArtFactory/bigshot/pkg/constants"
-	"github.com/DevopsArtFactory/bigshot/pkg/schema"
-	"github.com/DevopsArtFactory/bigshot/pkg/tools"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/timestreamwrite"
-	"github.com/sirupsen/logrus"
-	"golang.org/x/net/http2"
 	"net"
 	"net/http"
 	"strconv"
@@ -32,6 +25,14 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/client"
 	"github.com/aws/aws-sdk-go/aws/credentials"
+	"github.com/aws/aws-sdk-go/aws/session"
+	"github.com/aws/aws-sdk-go/service/timestreamwrite"
+	"github.com/sirupsen/logrus"
+	"golang.org/x/net/http2"
+
+	"github.com/DevopsArtFactory/bigshot/pkg/constants"
+	"github.com/DevopsArtFactory/bigshot/pkg/schema"
+	"github.com/DevopsArtFactory/bigshot/pkg/tools"
 )
 
 type TimeStream struct {

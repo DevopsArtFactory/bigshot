@@ -31,20 +31,6 @@ var routes = [
     layout: "/admin",
   },
   {
-    path: "/icons",
-    name: "Icons",
-    icon: "tim-icons icon-atom",
-    component: Icons,
-    layout: "/admin"
-  },
-  {
-    path: "/notifications",
-    name: "Notifications",
-    icon: "tim-icons icon-bell-55",
-    component: Notifications,
-    layout: "/admin"
-  },
-  {
     path: "/detail/:template",
     name: "Template details",
     icon: "tim-icons icon-single-02",
@@ -59,12 +45,26 @@ var routes = [
     component: SystheticList,
     layout: "/admin"
   },
-  {
-    path: "/typography",
-    name: "Typography",
-    icon: "tim-icons icon-align-center",
-    component: Typography,
-    layout: "/admin"
-  },
+  // {
+  //   path: "/notifications",
+  //   name: "Notifications",
+  //   icon: "tim-icons icon-bell-55",
+  //   component: Notifications,
+  //   layout: "/admin"
+  // },
+  // {
+  //   path: "/icons",
+  //   name: "Icons",
+  //   icon: "tim-icons icon-atom",
+  //   component: Icons,
+  //   layout: "/admin"
+  // },
+  // {
+  //   path: "/typography",
+  //   name: "Typography",
+  //   icon: "tim-icons icon-align-center",
+  //   component: Typography,
+  //   layout: "/admin"
+  // },
 ];
 export default routes;

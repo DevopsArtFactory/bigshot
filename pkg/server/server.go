@@ -18,9 +18,10 @@ package server
 
 import (
 	"fmt"
-	"github.com/sirupsen/logrus"
 	"net/http"
 	"os"
+
+	"github.com/sirupsen/logrus"
 
 	"github.com/DevopsArtFactory/bigshot/pkg/constants"
 	"github.com/DevopsArtFactory/bigshot/pkg/schema"

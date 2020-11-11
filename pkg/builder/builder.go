@@ -64,6 +64,14 @@ func (b *Builder) Validate() error {
 		return errors.New("template name is required")
 	}
 
+	if len(b.Config.Regions) > 0 {
+		for _, region := range b.Config.Regions {
+			if tools.IsStringInArray(region.Region, constants.UnSupportedAWSRegion) {
+				return fmt.Errorf("unsupported region: %s", region.Region)
+			}
+		}
+	}
+
 	for _, target := range b.Config.Targets {
 		if !tools.IsStringInArray(target.Method, constants.AllowedMethods) {
 			return fmt.Errorf("method for API check is not allowed: %s", target.Method)

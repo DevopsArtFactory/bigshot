@@ -138,7 +138,11 @@ func GenerateRuleName(region, name string) string {
 
 // CreateCronExpression makes cron expression with interval
 func CreateCronExpression(interval int) string {
-	return fmt.Sprintf("rate(%d minutes)", interval)
+	unit := "minutes"
+	if interval == 1 {
+		unit = "minute"
+	}
+	return fmt.Sprintf("rate(%d %s)", interval, unit)
 }
 
 // Wait runs empty timer

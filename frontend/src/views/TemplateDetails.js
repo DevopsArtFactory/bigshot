@@ -11,6 +11,8 @@ import {
   Label,
   Input,
   Button,
+  CardFooter,
+    Table,
 } from "reactstrap";
 import axios from "axios";
 
@@ -22,6 +24,9 @@ class TemplateDetails extends React.Component {
       loading: true,
       item: {},
     }
+
+    this.Reset = this.Reset.bind(this)
+    this.Save = this.Save.bind(this)
   }
 
   componentDidMount = async () =>  {
@@ -49,6 +54,17 @@ class TemplateDetails extends React.Component {
     this.props.history.goBack()
   }
 
+  Save = () => {
+    console.log(this.state.item)
+  }
+
+  HandleInput = (identifier) => {
+    console.log(this.state.item)
+  }
+
+  Reset = () => {
+  }
+
   render() {
     const { item } = this.state
     console.log(item)
@@ -74,7 +90,7 @@ class TemplateDetails extends React.Component {
                 </CardHeader>
                 <CardBody>
                   <form>
-                    <h3>Basic Information</h3>
+                    <h1>Basic Information</h1>
                     <div className="form-row">
                       <FormGroup className="col-md-12">
                         <Label for="name_input">Name</Label>
@@ -91,7 +107,7 @@ class TemplateDetails extends React.Component {
                         <Input type="number"  id="timeout_input" defaultValue={item.Timeout}/>
                       </FormGroup>
                     </div>
-                    <h3>SlackURLs</h3>
+                    <h1>SlackURLs</h1>
                     {item.SlackURLs ?
                       <ul>
                         {item.SlackURLs.map((slack, i) => {
@@ -103,19 +119,36 @@ class TemplateDetails extends React.Component {
                       </ul> : <div>No slack urls</div>
                     }
 
-                    <h3>Regions</h3>
+                    <h1>Regions</h1>
                     {item.Regions ?
-                        <ul>
+                        <Table responsive>
+                          <thead>
+                            <tr>
+                              <th className="text-center">#</th>
+                              <th className="text-center">Name</th>
+                              <th className="text-right">Actions</th>
+                            </tr>
+                          </thead>
+                          <tbody>
                           {item.Regions.map((region, i) => {
                             return (
-                                <li key={"region_"+i}>{region.region}</li>
+                            <tr key={"region"+1}>
+                              <td className="text-center">{i+1}</td>
+                              <td className="text-center">{region.region}</td>
+                              <td className="text-right">
+                                <Button className="btn-icon btn-simple" color="danger" size="sm" onClick={() => this.Delete}>
+                                  <i className="fa fa-times" />
+                                </Button>{` `}
+                              </td>
+                            </tr>
                             )
                           })
                           }
-                        </ul> : <div>No region specified</div>
+                          </tbody>
+                        </Table>  : <div>No region specified</div>
                     }
 
-                    <h3>Targets</h3>
+                    <h1>Targets</h1>
                     {item.Targets.map((target, i) => (
                         <div key={i}>
                           <div className="form-row">
@@ -175,6 +208,10 @@ class TemplateDetails extends React.Component {
                     ))}
                   </form>
                 </CardBody>
+                <CardFooter>
+                  <Button color="success" size="sm" onClick={this.Save}>Save</Button>
+                  <Button color="secondary" size="sm" onClick={this.Reset}>Reset</Button>
+                </CardFooter>
               </Card>
             </Col>
           </Row>

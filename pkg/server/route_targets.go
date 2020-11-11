@@ -1,9 +1,25 @@
+/*
+Copyright 2020 The bigshot Authors
+
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+
+    http://www.apache.org/licenses/LICENSE-2.0
+
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+*/
+
 package server
 
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
+	fmt "fmt"
 	"net/http"
 	"time"
 
@@ -24,7 +40,7 @@ func HealthCheck(w http.ResponseWriter, req *http.Request) {
 func ListItems(w http.ResponseWriter, req *http.Request) {
 	items, err := controller.ListItems()
 	if err != nil {
-		fmt.Fprintf(w, err.Error())
+		logger.WriteError(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
@@ -57,7 +73,7 @@ func RetrieveItemDetails(w http.ResponseWriter, req *http.Request) {
 
 	item, err := controller.GetDetail(template)
 	if err != nil {
-		fmt.Fprintf(w, err.Error())
+		logger.WriteError(err)
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
