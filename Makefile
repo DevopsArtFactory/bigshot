@@ -172,3 +172,8 @@ worker-build:
 .PHONY: worker-release
 worker-release: worker-build
 	@ aws s3 cp $(BUILD_DIR)/$(WORKER_ZIP) $(S3_WORKER_PATH)/$(WORKER_ZIP) --acl public-read --profile art-id
+
+.PHONY: local
+local:
+	@ go run cmd/bigshot/main.go server -v debug
+	@ docker-compose up

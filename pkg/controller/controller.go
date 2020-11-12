@@ -73,6 +73,7 @@ func (c *Controller) Setup() error {
 	return nil
 }
 
+// Run starts the synthetic with template
 func Run(template string) error {
 	region, err := builder.GetDefaultRegion(constants.DefaultProfile)
 	if err != nil {
@@ -89,4 +90,38 @@ func Run(template string) error {
 	logrus.Info(item)
 
 	return nil
+}
+
+// ListItems retrieves all templates
+func ListItems() ([]schema.Config, error) {
+	region, err := builder.GetDefaultRegion(constants.DefaultProfile)
+	if err != nil {
+		return nil, err
+	}
+
+	dynamoDB := client.NewDynamoDBClient(region)
+
+	items, err := dynamoDB.Scan(tools.GenerateNewTableName())
+	if err != nil {
+		return nil, err
+	}
+
+	return ParseTemplates(items)
+}
+
+// GetDetail retrieves detailed information
+func GetDetail(template string) (*schema.Config, error) {
+	region, err := builder.GetDefaultRegion(constants.DefaultProfile)
+	if err != nil {
+		return nil, err
+	}
+
+	dynamoDB := client.NewDynamoDBClient(region)
+
+	item, err := dynamoDB.GetTemplate(template, tools.GenerateNewTableName())
+	if err != nil {
+		return nil, err
+	}
+
+	return ChangeItemToConfig(item)
 }

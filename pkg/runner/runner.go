@@ -107,14 +107,12 @@ func (r *Runner) Init() error {
 		}
 	}
 	wg.Wait()
-	close(r.Generator.Channel.Input)
 
 	if err := r.CreateTrigger(r.Builder.Config); err != nil {
-
+		return err
 	}
 
-	PrintErrors(<-r.Generator.Channel.Output)
-
+	close(r.Generator.Channel.Input)
 	return nil
 }
 
@@ -280,6 +278,7 @@ func (r *Runner) CreateTrigger(config *schema.Config) error {
 
 	min := config.Interval / 60
 	cron := tools.CreateCronExpression(min)
+	logrus.Infof("cron expression made: %s", cron)
 	ruleName := tools.GenerateRuleName(region, config.Name)
 
 	ruleArn, err := cw.PutRule(ruleName, cron)
@@ -412,14 +411,17 @@ func (r *Runner) List() error {
 func (r *Runner) RunServer() error {
 	logrus.Infof("Booting up bigshot server")
 	s := server.New()
-	s.SetDefaultSetting()
 	s.SetRouter()
+
+	if err := s.SetDefaultSetting(r.Builder.Flags.LogFile); err != nil {
+		return err
+	}
 
 	logrus.Infof("Server setting is done")
 
 	addr := s.GetAddr()
 	logrus.Infof("Start bigshot server")
-	if err := http.ListenAndServe(addr, s.Router); err != nil {
+	if err := http.ListenAndServe(addr, server.Wrapper(s.Router)); err != nil {
 		logrus.Errorf(err.Error())
 	}
 	logrus.Infof("Shutting down bigshot server")
@@ -559,6 +561,9 @@ func openChannel() func(*generator.Channel, *sync.WaitGroup) {
 	var result []error
 	return func(ch *generator.Channel, wg *sync.WaitGroup) {
 		for re := range ch.Input {
+			if re != nil {
+				logrus.Error(re.Error())
+			}
 			result = append(result, re)
 			wg.Done()
 		}

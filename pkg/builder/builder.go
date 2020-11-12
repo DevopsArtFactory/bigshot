@@ -43,10 +43,11 @@ type Builder struct {
 type Flags struct {
 	Region    string `json:"region"`
 	Config    string `json:"config"`
-	AllRegion bool   `json:"all"`
 	ZipFile   string `json:"zip_file"`
-	Interval  int    `json:"interval"`
+	LogFile   string `json:"log_file"`
+	AllRegion bool   `json:"all"`
 	DryRun    bool   `json:"dry_run"`
+	Interval  int    `json:"interval"`
 }
 
 // Validate checks the validation of configuration
@@ -61,6 +62,14 @@ func (b *Builder) Validate() error {
 
 	if len(b.Config.Name) == 0 {
 		return errors.New("template name is required")
+	}
+
+	if len(b.Config.Regions) > 0 {
+		for _, region := range b.Config.Regions {
+			if tools.IsStringInArray(region.Region, constants.UnSupportedAWSRegion) {
+				return fmt.Errorf("unsupported region: %s", region.Region)
+			}
+		}
 	}
 
 	for _, target := range b.Config.Targets {

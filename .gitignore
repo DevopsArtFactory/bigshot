@@ -3,3 +3,4 @@ out
 .idea/*
 script
 *.yaml
+node_modules
