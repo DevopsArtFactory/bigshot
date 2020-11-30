@@ -22,4 +22,6 @@ type Event struct {
 	Body      map[string]string `json:"body,omitempty"`
 	Header    map[string]string `json:"header,omitempty"`
 	SlackURLs []string          `json:"slack_urls"`
+	LogLevel  string            `json:"log_level"`
+	Timeout   int               `json:"timeout"`
 }

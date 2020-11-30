@@ -24,13 +24,6 @@ import TemplateDetails from "views/TemplateDetails.js";
 
 var routes = [
   {
-    path: "/dashboard",
-    name: "Dashboard",
-    icon: "tim-icons icon-chart-pie-36",
-    component: Dashboard,
-    layout: "/admin",
-  },
-  {
     path: "/detail/:template",
     name: "Template details",
     icon: "tim-icons icon-single-02",

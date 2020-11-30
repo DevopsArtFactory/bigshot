@@ -23,9 +23,12 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/sirupsen/logrus"
+
 	"github.com/DevopsArtFactory/bigshot/pkg/controller"
 	"github.com/DevopsArtFactory/bigshot/pkg/logger"
 	"github.com/DevopsArtFactory/bigshot/pkg/parameter"
+	"github.com/DevopsArtFactory/bigshot/pkg/schema"
 )
 
 // HealthCheck does health check
@@ -85,6 +88,63 @@ func RetrieveItemDetails(w http.ResponseWriter, req *http.Request) {
 	_ = json.NewEncoder(w).Encode(m)
 }
 
+// SaveTemplate retrieves detailed information about template
+func SaveTemplate(w http.ResponseWriter, req *http.Request) {
+	template, err := getTemplateID(req.URL.Path, "/save/template/")
+	if err != nil {
+		logger.WriteError(err)
+		return
+	}
+	logrus.Infof("save template: %s", template)
+
+	config := schema.Config{}
+	err = json.NewDecoder(req.Body).Decode(&config)
+	if err != nil {
+		logger.WriteError(err)
+	}
+
+	config.Name = template
+	err = controller.ModifyTemplate(config)
+	if err != nil {
+		logger.WriteError(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	enableCors(&w)
+	w.WriteHeader(http.StatusOK)
+}
+
+// VerifyTarget tries to run verification of target configuration
+func VerifyTarget(w http.ResponseWriter, req *http.Request) {
+	enableCors(&w)
+	target := schema.Target{}
+	err := json.NewDecoder(req.Body).Decode(&target)
+	if err != nil {
+		logger.WriteError(err)
+		return
+	}
+
+	fmt.Println(target)
+	fmt.Println(req.ContentLength)
+
+	res, err := controller.RunTargetVerification(target)
+	if err != nil {
+		logger.WriteError(err)
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
+
+	fmt.Println(res)
+
+	m := map[string]interface{}{
+		"body": *res,
+	}
+
+	w.WriteHeader(http.StatusOK)
+	_ = json.NewEncoder(w).Encode(m)
+}
+
 // getTemplateID returns template ID from URL
 func getTemplateID(path, prefix string) (string, error) {
 	template := path[len(prefix):]
@@ -94,4 +154,11 @@ func getTemplateID(path, prefix string) (string, error) {
 	}
 
 	return template, nil
+}
+
+// enableCors allows cross-origin-header
+func enableCors(w *http.ResponseWriter) {
+	(*w).Header().Set("Access-Control-Allow-Origin", "*")
+	(*w).Header().Set("Access-Control-Allow-Headers", "*")
+	(*w).Header().Set("Access-Control-Allow-Methods", "DELETE, POST, GET, OPTIONS")
 }

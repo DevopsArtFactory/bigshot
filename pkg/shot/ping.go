@@ -25,6 +25,7 @@ import (
 	"github.com/sirupsen/logrus"
 
 	"github.com/DevopsArtFactory/bigshot/pkg/constants"
+	"github.com/DevopsArtFactory/bigshot/pkg/schema"
 )
 
 type Ping struct {
@@ -34,6 +35,18 @@ type Ping struct {
 	Duration time.Duration
 	Target   string
 	SlackURL []string
+}
+
+func (p *Ping) SetTimeout(i int) {
+	panic("implement me")
+}
+
+func (p *Ping) SetLogLevel(s string) {
+	panic("implement me")
+}
+
+func (p *Ping) RunWithResult() (*schema.Result, error) {
+	panic("implement me")
 }
 
 func (p *Ping) SetMethod(s string) {

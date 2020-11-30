@@ -92,8 +92,8 @@ func (d *DynamoDB) CreateMetaDataTable(name string) error {
 	return nil
 }
 
-// CreateItem creates new item for bigshot
-func (d *DynamoDB) CreateItem(config schema.Config, tableName string) error {
+// SaveItem creates new item for bigshot
+func (d *DynamoDB) SaveItem(config schema.Config, tableName string) error {
 	input := &dynamodb.PutItemInput{
 		Item: map[string]*dynamodb.AttributeValue{
 			constants.DefaultPrimaryKey: {
@@ -104,6 +104,9 @@ func (d *DynamoDB) CreateItem(config schema.Config, tableName string) error {
 			},
 			"timeout": {
 				N: aws.String(strconv.Itoa(config.Timeout)),
+			},
+			"log": {
+				S: aws.String(config.Log),
 			},
 		},
 		ReturnConsumedCapacity: aws.String("TOTAL"),
@@ -146,6 +149,12 @@ func (d *DynamoDB) CreateItem(config schema.Config, tableName string) error {
 
 			t.M["header"] = &dynamodb.AttributeValue{
 				M: header,
+			}
+		}
+
+		if target.Timeout > 0 {
+			t.M["timeout"] = &dynamodb.AttributeValue{
+				N: aws.String(strconv.Itoa(target.Timeout)),
 			}
 		}
 

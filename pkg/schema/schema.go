@@ -21,6 +21,9 @@ type Config struct {
 	// Bigshot template name. This will be key of dynamodb table
 	Name string `yaml:"name"`
 
+	// Lambda log level
+	Log string `yaml:"log"`
+
 	// Lambda execution timeout in seconds
 	Timeout int `yaml:"timeout"`
 
@@ -50,6 +53,9 @@ type Target struct {
 
 	// Header value of API
 	Header map[string]string `json:"header,omitempty"`
+
+	// Target Request timeout
+	Timeout int `yaml:"timeout"`
 }
 
 // Region configuration

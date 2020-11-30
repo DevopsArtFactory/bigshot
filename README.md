@@ -1,4 +1,4 @@
-# bigshot
+# [PREVIEW] bigshot
 bigshot is an open source resource audit tool. When you want to get all list of infrastructure resources in cloud provider,
 then you could use bigshot to easily get list of all resources. For better security, it is important to check infrastructures.
 

@@ -79,6 +79,9 @@ func GetFlags() *Flags {
 // Run executes main process of lambda
 func Run(evt event.Event) error {
 	envs := env.GetEnvs()
+	if len(evt.LogLevel) == 0 {
+		evt.LogLevel = constants.DefaultWorkerLogLevel
+	}
 
 	if len(envs.Region) == 0 {
 		return fmt.Errorf("region is not specified. please check environment variables")

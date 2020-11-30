@@ -69,6 +69,11 @@ func (w *WorkerManager) RunTest() error {
 
 // Trigger will invoke other regions' lambda
 func Trigger(item map[string]*dynamodb.AttributeValue) error {
+	var logLevel string
+	if _, ok := item["log"]; ok {
+		logLevel = *item["log"].S
+	}
+
 	template := *item["name"].S
 	regions := item["regions"]
 	totalInterval, err := strconv.Atoi(*item["interval"].N)
@@ -103,10 +108,25 @@ func Trigger(item map[string]*dynamodb.AttributeValue) error {
 
 	f := func(regionData map[string]*dynamodb.AttributeValue, target *dynamodb.AttributeValue, ch chan error) {
 		data := target.M
+		timeout := constants.DefaultTargetTimeout
+		if _, ok := data["timeout"]; ok {
+			timeout, err = strconv.Atoi(*data["timeout"].N)
+			if err != nil {
+				ch <- err
+				return
+			}
+		}
+		logrus.Infof("%s, %d", *data["url"].S, timeout)
+
 		m := map[string]interface{}{
 			"target":                   *data["url"].S,
 			"method":                   *data["method"].S,
+			"timeout":                  timeout,
 			constants.BigShotSlackURLs: slackURLs,
+		}
+
+		if len(logLevel) > 0 {
+			m["log_level"] = logLevel
 		}
 
 		if _, ok := data["body"]; ok {

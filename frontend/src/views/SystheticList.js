@@ -1,20 +1,3 @@
-/*!
-
-=========================================================
-* Black Dashboard React v1.1.0
-=========================================================
-
-* Product Page: https://www.creative-tim.com/product/black-dashboard-react
-* Copyright 2020 Creative Tim (https://www.creative-tim.com)
-* Licensed under MIT (https://github.com/creativetimofficial/black-dashboard-react/blob/master/LICENSE.md)
-
-* Coded by Creative Tim
-
-=========================================================
-
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-*/
 import React, { useState, useEffect } from "react";
 import axios from 'axios';
 
@@ -23,6 +6,8 @@ import {
   Table,
   Button
 } from "reactstrap";
+
+const { REACT_APP_APP_HOST } = process.env;
 
 class SystheticList extends React.Component {
   constructor(props) {
@@ -37,10 +22,10 @@ class SystheticList extends React.Component {
   componentDidMount = async () =>  {
     try {
       const response = await axios.get(
-          'http://localhost:8765/list'
+         REACT_APP_APP_HOST + '/list'
       );
 
-      if (response.status == 200) {
+      if (response.status === 200) {
         this.setState({
           items: response.data.body,
           loading: false,

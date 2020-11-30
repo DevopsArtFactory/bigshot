@@ -122,6 +122,15 @@ upload-only: version
 	@ aws s3 cp $(BUILD_DIR)/ $(S3_RELEASE_PATH)/ --recursive --include "$(PROJECT)-*" --acl public-read
 	@ aws s3 cp $(S3_RELEASE_PATH)/ $(S3_RELEASE_LATEST)/ --recursive --acl public-read
 
+	docker build --build-arg BIGSHOT_VERSION=$(VERSION) --build-arg BIGSHOT_URL=https://devopsartfactory.s3.ap-northeast-2.amazonaws.com/bigshot/releases/$(VERSION)/bigshot-linux-amd64 -t devopsart/bigshot:release-$(VERSION) deploy/server
+	docker push devopsart/bigshot:release-$(VERSION)
+
+.PHONY: frontend-release
+frontend-release:
+	@ rm -rf frontend/node_modules
+	docker build -t devopsart/bigshot-frontend:release-$(VERSION) --no-cache frontend
+	docker push devopsart/bigshot-frontend:release-$(VERSION)
+
 .PHONY: upload-edge-only
 upload-edge-only: version
 	aws s3 cp $(BUILD_DIR)/ $(S3_BLEEDING_EDGE_LATEST)/ --recursive --include "$(PROJECT)-*" --acl public-read

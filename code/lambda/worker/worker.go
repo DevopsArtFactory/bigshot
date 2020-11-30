@@ -49,11 +49,11 @@ func (w *Worker) RunTest(workerType string, slackURLs []string) error {
 			Method:    "GET",
 			SlackURLs: slackURLs,
 		},
-		{
-			Target:    "https://www.amazon.com",
-			Method:    "GET",
-			SlackURLs: slackURLs,
-		},
+		//{
+		//	Target:    "https://www.amazon.com",
+		//	Method:    "GET",
+		//	SlackURLs: slackURLs,
+		//},
 	}
 
 	for _, evt := range evts {
@@ -90,7 +90,9 @@ func Shoot(t, region string, evt event.Event) error {
 			shooter.SetHeader(evt.Header)
 		}
 		shooter.SetRate(1)
+		shooter.SetTimeout(evt.Timeout)
 		shooter.SetSlackURL(evt.SlackURLs)
+		shooter.SetLogLevel(evt.LogLevel)
 		if err := shooter.Run(); err != nil {
 			return err
 		}
