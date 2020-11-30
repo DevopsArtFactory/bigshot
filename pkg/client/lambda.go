@@ -196,7 +196,7 @@ func (l Lambda) AddPermission(sourceArn, funcName string) error {
 	input := &lambda.AddPermissionInput{
 		Action:       aws.String("lambda:InvokeFunction"),
 		FunctionName: aws.String(funcName),
-		Principal:    aws.String("lambda.amazonaws.com"),
+		Principal:    aws.String("events.amazonaws.com"),
 		SourceArn:    aws.String(sourceArn),
 		StatementId:  aws.String(funcName),
 	}
