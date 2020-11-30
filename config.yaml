@@ -1,4 +1,5 @@
 name: sample-template
+log: debug
 timeout: 300
 interval: 300
 slack_urls:

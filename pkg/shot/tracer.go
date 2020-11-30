@@ -33,6 +33,7 @@ import (
 	"time"
 
 	"github.com/olekukonko/tablewriter"
+	"github.com/sirupsen/logrus"
 	"golang.org/x/net/http2"
 
 	"github.com/DevopsArtFactory/bigshot/pkg/client"
@@ -57,6 +58,8 @@ type Tracer struct {
 	Region   string
 	SlackURL []string
 	Result   schema.Result
+	LogLevel string
+	Timeout  int
 }
 
 // SetRate sets rate of request
@@ -64,8 +67,18 @@ func (t *Tracer) SetRate(i int) {
 	t.Rate = i
 }
 
+// SetTimeout sets request timeout
+func (t *Tracer) SetTimeout(i int) {
+	if i == 0 {
+		i = 3
+	}
+	t.Attacker.Timeout = time.Duration(i) * time.Second
+	logrus.Infof("Timout: %d", i)
+}
+
 // SetTarget sets the target for the request
 func (t *Tracer) SetTarget(s string) {
+	logrus.Infof("Target: %s", s)
 	t.Target = s
 	if strings.HasPrefix(s, "http://") {
 		t.Protocol = constants.HTTP
@@ -76,8 +89,14 @@ func (t *Tracer) SetTarget(s string) {
 	}
 }
 
-// Run starts to trace request
-func (t *Tracer) Run() error {
+// SetLogLevel sets loglevel
+func (t *Tracer) SetLogLevel(logLevel string) {
+	logrus.Infof("LogLevel: %s", logLevel)
+	t.LogLevel = logLevel
+}
+
+// Trace starts tracing
+func (t *Tracer) Trace() error {
 	var bodyJSON string
 	var err error
 	if t.Body != nil {
@@ -152,6 +171,9 @@ func (t *Tracer) Run() error {
 
 	resp, err := t.Attacker.Do(req)
 	if err != nil {
+		if sendErr := t.SendErrorAlarm(err.Error()); sendErr != nil {
+			logrus.Errorln(sendErr)
+		}
 		return err
 	}
 
@@ -165,8 +187,19 @@ func (t *Tracer) Run() error {
 		return err
 	}
 
-	if err := t.PrintResult(); err != nil {
+	return nil
+}
+
+// Run starts to trace request
+func (t *Tracer) Run() error {
+	if err := t.Trace(); err != nil {
 		return err
+	}
+
+	if t.LogLevel == "debug" {
+		if err := t.PrintResult(); err != nil {
+			return err
+		}
 	}
 
 	if len(t.SlackURL) > 0 && t.Result.Response.StatusCode != 200 {
@@ -180,6 +213,15 @@ func (t *Tracer) Run() error {
 	}
 
 	return nil
+}
+
+// RunWithResult runs tracing and returns result
+func (t *Tracer) RunWithResult() (*schema.Result, error) {
+	if err := t.Trace(); err != nil {
+		return nil, err
+	}
+
+	return &t.Result, nil
 }
 
 // PrintResult prints result
@@ -321,6 +363,52 @@ func (t *Tracer) SendAlarm() error {
 		Color:  constants.ErrorColor,
 		Text:   fmt.Sprintf("*Request Tracing result* - Total Time: %s", t.Result.TracingData.FinishRequest.String()),
 		Fields: fields,
+	})
+
+	for _, URL := range t.SlackURL {
+		if err := slack.SendMessageWithWebHook(attachments, blocks, URL); err != nil {
+			fmt.Println(err.Error())
+			return err
+		}
+	}
+
+	return nil
+}
+
+// SendErrorAlarm sends error alarm
+func (t *Tracer) SendErrorAlarm(errorMsg string) error {
+	var attachments []slacker.Attachment
+	var blocks []slacker.Block
+	slack := slacker.NewSlackClient()
+
+	// title
+	blocks = append(blocks, slacker.Block{
+		Type: "section",
+		Text: &slacker.Text{
+			Type: "mrkdwn",
+			Text: fmt.Sprintf("Error occurred: `%s`", t.Target),
+		},
+	})
+
+	// divider
+	blocks = append(blocks, slacker.Block{
+		Type: "divider",
+	})
+
+	blocks = append(blocks, slacker.Block{
+		Type: "section",
+		Text: &slacker.Text{
+			Type: "mrkdwn",
+			Text: fmt.Sprintf("*%s*", t.Region),
+		},
+	})
+
+	blocks = append(blocks, slacker.Block{
+		Type: "section",
+		Text: &slacker.Text{
+			Type: "mrkdwn",
+			Text: fmt.Sprintf("*%s*", errorMsg),
+		},
 	})
 
 	for _, URL := range t.SlackURL {
@@ -481,11 +569,13 @@ func (t *Tracer) SaveData() error {
 // SetSlackURL set slack URL for notification
 func (t *Tracer) SetSlackURL(s []string) {
 	t.SlackURL = s
+	logrus.Infof("SlackUrl: %s", strings.Join(s, ","))
 }
 
 // SetMethod sets method of API
 func (t *Tracer) SetMethod(s string) {
 	t.Method = s
+	logrus.Infof("Method: %s", s)
 }
 
 // SetBody sets body data

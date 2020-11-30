@@ -213,7 +213,7 @@ func (w *Worker) UpdateWorkerTemplate(c *schema.Config) error {
 
 	// update the configuration
 	tableName := tools.GenerateNewTableName()
-	if err := con.DynamoDBClient.CreateItem(*con.Config, tableName); err != nil {
+	if err := con.DynamoDBClient.SaveItem(*con.Config, tableName); err != nil {
 		return err
 	}
 

@@ -27,6 +27,9 @@ const (
 	// DefaultLogLevel is the default global verbosity
 	DefaultLogLevel = logrus.InfoLevel
 
+	// DefaultWorkerLogLevel is the default worker verbosity
+	DefaultWorkerLogLevel = "info"
+
 	// DefaultRegion is the default region id
 	DefaultRegion = "us-east-1"
 
@@ -89,6 +92,9 @@ const (
 
 	// DefaultTimeout is default lambda execution timeout
 	DefaultTimeout = 300
+
+	// DefaultTargetTimeout is default lambda execution timeout
+	DefaultTargetTimeout = 5
 
 	// DefaultInterval is default synthetics interval
 	DefaultInterval = 300

@@ -20,9 +20,12 @@ import React from "react";
 import ReactDOM from "react-dom";
 import { createBrowserHistory } from "history";
 import { Router, Route, Switch, Redirect } from "react-router-dom";
+import { ToastContainer } from 'react-toastify';
 
 import AdminLayout from "layouts/Admin/Admin.js";
 
+import "react-loader-spinner/dist/loader/css/react-spinner-loader.css"
+import 'react-toastify/dist/ReactToastify.css';
 import "assets/scss/black-dashboard-react.scss";
 import "assets/demo/demo.css";
 import "assets/css/nucleo-icons.css";
@@ -35,6 +38,17 @@ ReactDOM.render(
       <Route path="/admin" render={props => <AdminLayout {...props} />} />
       <Redirect from="/" to="/admin/dashboard" />
     </Switch>
+      <ToastContainer
+          position="top-right"
+          autoClose={15}
+          hideProgressBar={false}
+          newestOnTop={false}
+          closeOnClick
+          rtl={false}
+          pauseOnFocusLoss
+          draggable
+          pauseOnHover
+      />
   </Router>,
   document.getElementById("root")
 );

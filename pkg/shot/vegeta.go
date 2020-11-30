@@ -24,6 +24,7 @@ import (
 	vegeta "github.com/tsenart/vegeta/v12/lib"
 
 	"github.com/DevopsArtFactory/bigshot/pkg/constants"
+	"github.com/DevopsArtFactory/bigshot/pkg/schema"
 )
 
 type Vegeta struct {
@@ -33,6 +34,18 @@ type Vegeta struct {
 	Duration time.Duration
 	SlackURL []string
 	Targeter vegeta.Targeter
+}
+
+func (v *Vegeta) SetTimeout(i int) {
+	panic("implement me")
+}
+
+func (v *Vegeta) SetLogLevel(s string) {
+	panic("implement me")
+}
+
+func (v *Vegeta) RunWithResult() (*schema.Result, error) {
+	panic("implement me")
 }
 
 func (v *Vegeta) SetMethod(s string) {

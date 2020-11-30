@@ -26,6 +26,8 @@ func (s *Server) SetRouter() {
 	s.Router.HandleFunc("/health", HealthCheck)
 	s.Router.HandleFunc("/list", ListItems)
 	s.Router.HandleFunc("/detail/", RetrieveItemDetails)
+	s.Router.HandleFunc("/save/template/", SaveTemplate)
+	s.Router.HandleFunc("/verify-target", VerifyTarget)
 	s.Router.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/" {
 			http.NotFound(w, r)

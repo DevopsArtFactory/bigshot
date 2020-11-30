@@ -62,6 +62,12 @@ func ChangeItemToConfig(item map[string]*dynamodb.AttributeValue) (*schema.Confi
 	}
 	config.Regions = regions
 
+	slackURLs := []string{}
+	for _, url := range item["slack_urls"].SS {
+		slackURLs = append(slackURLs, *url)
+	}
+	config.SlackURLs = slackURLs
+
 	targets := []schema.Target{}
 	for _, target := range item["targets"].L {
 		t := schema.Target{

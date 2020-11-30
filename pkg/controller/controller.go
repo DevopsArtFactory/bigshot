@@ -17,12 +17,15 @@ limitations under the License.
 package controller
 
 import (
+	"fmt"
+
 	"github.com/sirupsen/logrus"
 
 	"github.com/DevopsArtFactory/bigshot/pkg/builder"
 	"github.com/DevopsArtFactory/bigshot/pkg/client"
 	"github.com/DevopsArtFactory/bigshot/pkg/constants"
 	"github.com/DevopsArtFactory/bigshot/pkg/schema"
+	"github.com/DevopsArtFactory/bigshot/pkg/shot"
 	"github.com/DevopsArtFactory/bigshot/pkg/tools"
 )
 
@@ -65,7 +68,7 @@ func (c *Controller) Setup() error {
 	}
 
 	// create new configuration
-	if err := c.DynamoDBClient.CreateItem(*c.Config, tableName); err != nil {
+	if err := c.DynamoDBClient.SaveItem(*c.Config, tableName); err != nil {
 		return err
 	}
 
@@ -124,4 +127,33 @@ func GetDetail(template string) (*schema.Config, error) {
 	}
 
 	return ChangeItemToConfig(item)
+}
+
+// ModifyTemplate modifies template only
+func ModifyTemplate(config schema.Config) error {
+	tableName := tools.GenerateNewTableName()
+
+	region, err := builder.GetDefaultRegion(constants.DefaultProfile)
+	if err != nil {
+		return err
+	}
+
+	dynamoDB := client.NewDynamoDBClient(region)
+	if err := dynamoDB.SaveItem(config, tableName); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// RunTargetVerification
+func RunTargetVerification(target schema.Target) (*schema.Result, error) {
+	result, err := shot.Shoot(target, true)
+	if err != nil {
+		return nil, err
+	}
+
+	fmt.Println(result)
+
+	return result, nil
 }
