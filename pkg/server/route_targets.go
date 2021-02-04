@@ -97,13 +97,13 @@ func SaveTemplate(w http.ResponseWriter, req *http.Request) {
 	}
 	logrus.Infof("save template: %s", template)
 
-	config := schema.Config{}
+	config := schema.Template{}
 	err = json.NewDecoder(req.Body).Decode(&config)
 	if err != nil {
 		logger.WriteError(err)
 	}
 
-	config.Name = template
+	config.Name = &template
 	err = controller.ModifyTemplate(config)
 	if err != nil {
 		logger.WriteError(err)

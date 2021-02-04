@@ -30,7 +30,7 @@ import (
 )
 
 type Controller struct {
-	Config         *schema.Config
+	Template       *schema.Template
 	DynamoDBClient *client.DynamoDB
 	Region         string
 }
@@ -41,22 +41,22 @@ func (c *Controller) GetRegion() string {
 }
 
 // New returns new controller
-func New(config *schema.Config) (*Controller, error) {
+func New(config *schema.Template) (*Controller, error) {
 	defaultRegion, err := builder.GetDefaultRegion(constants.DefaultProfile)
 	if err != nil {
 		return nil, err
 	}
 
 	return &Controller{
-		Config:         config,
+		Template:       config,
 		Region:         defaultRegion,
 		DynamoDBClient: client.NewDynamoDBClient(defaultRegion),
 	}, nil
 }
 
-// Setup creates a controller function and metadata table
-func (c *Controller) Setup() error {
-	if c.Config == nil {
+// SetupMetadataTable creates a controller metadata table
+func (c *Controller) SetupMetadataTable() error {
+	if c.Template == nil {
 		logrus.Warn("Controller cannot be setup because there is no configuration file")
 		return nil
 	}
@@ -68,7 +68,7 @@ func (c *Controller) Setup() error {
 	}
 
 	// create new configuration
-	if err := c.DynamoDBClient.SaveItem(*c.Config, tableName); err != nil {
+	if err := c.DynamoDBClient.SaveItem(*c.Template, tableName); err != nil {
 		return err
 	}
 
@@ -96,7 +96,7 @@ func Run(template string) error {
 }
 
 // ListItems retrieves all templates
-func ListItems() ([]schema.Config, error) {
+func ListItems() ([]schema.Template, error) {
 	region, err := builder.GetDefaultRegion(constants.DefaultProfile)
 	if err != nil {
 		return nil, err
@@ -113,7 +113,7 @@ func ListItems() ([]schema.Config, error) {
 }
 
 // GetDetail retrieves detailed information
-func GetDetail(template string) (*schema.Config, error) {
+func GetDetail(template string) (*schema.Template, error) {
 	region, err := builder.GetDefaultRegion(constants.DefaultProfile)
 	if err != nil {
 		return nil, err
@@ -130,7 +130,7 @@ func GetDetail(template string) (*schema.Config, error) {
 }
 
 // ModifyTemplate modifies template only
-func ModifyTemplate(config schema.Config) error {
+func ModifyTemplate(config schema.Template) error {
 	tableName := tools.GenerateNewTableName()
 
 	region, err := builder.GetDefaultRegion(constants.DefaultProfile)

@@ -18,6 +18,7 @@ package event
 
 type Event struct {
 	Target    string            `json:"target"`
+	Port      string            `json:"port"`
 	Method    string            `json:"method"`
 	Body      map[string]string `json:"body,omitempty"`
 	Header    map[string]string `json:"header,omitempty"`

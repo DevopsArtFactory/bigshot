@@ -25,6 +25,7 @@ import (
 	"strconv"
 	"sync"
 	"text/tabwriter"
+	"time"
 
 	"github.com/AlecAivazis/survey/v2"
 	"github.com/aws/aws-sdk-go/service/dynamodb"
@@ -47,6 +48,8 @@ type Runner struct {
 	Generator *generator.Generator
 }
 
+var baseRetryCount = 3
+
 // New creates a new Runner
 func New(b *builder.Builder) *Runner {
 	return &Runner{
@@ -57,19 +60,20 @@ func New(b *builder.Builder) *Runner {
 // Init creates global lambda functions for command line
 func (r *Runner) Init() error {
 	var wg sync.WaitGroup
-	logrus.Info("Initiate bigshot infrastructures")
+	logrus.Info("Initiates bigshot infrastructures")
 
 	if r.Builder.Config == nil {
 		return errors.New("configuration is required for initialization")
 	}
 
+	// setup generator
 	if err := r.SetGenerator(); err != nil {
 		return err
 	}
 
-	// Setup Controller
+	// setup controller metadata table
 	if r.Generator.Controller != nil {
-		err := r.Generator.Controller.Setup()
+		err := r.Generator.Controller.SetupMetadataTable()
 		if err != nil {
 			return err
 		}
@@ -127,7 +131,7 @@ func (r *Runner) Destroy(args []string) error {
 	logrus.Infof("Destroying bigshot infrastructures: %s", name)
 
 	// name update
-	r.OverrideName(name)
+	r.OverrideName(&name)
 
 	if err := r.SetGenerator(); err != nil {
 		return err
@@ -184,7 +188,7 @@ func (r *Runner) UpdateCode(args []string) error {
 	var wg sync.WaitGroup
 	logrus.Info("Update code of bigshot infrastructures")
 
-	r.OverrideName(name)
+	r.OverrideName(&name)
 
 	if err := r.SetGenerator(); err != nil {
 		return err
@@ -221,8 +225,8 @@ func (r *Runner) UpdateTemplate(args []string) error {
 	logrus.Info("Update template of bigshot workermanager")
 
 	if r.Builder.Config == nil {
-		r.Builder.Config = &schema.Config{
-			Name: args[0],
+		r.Builder.Config = &schema.Template{
+			Name: &args[0],
 		}
 	}
 
@@ -238,7 +242,7 @@ func (r *Runner) UpdateTemplate(args []string) error {
 
 	// Setup Controller
 	if r.Generator.Controller != nil {
-		err := r.Generator.Controller.Setup()
+		err := r.Generator.Controller.SetupMetadataTable()
 		if err != nil {
 			return err
 		}
@@ -267,7 +271,7 @@ func (r *Runner) Run(args []string) error {
 }
 
 // CreateTrigger creates a cloudwatch rule to start bigshot
-func (r *Runner) CreateTrigger(config *schema.Config) error {
+func (r *Runner) CreateTrigger(config *schema.Template) error {
 	region, err := builder.GetDefaultRegion(constants.DefaultProfile)
 	if err != nil {
 		return err
@@ -276,10 +280,10 @@ func (r *Runner) CreateTrigger(config *schema.Config) error {
 	cw := client.NewCloudWatchClient(region)
 	lambda := client.NewLambdaClient(region)
 
-	min := config.Interval / 60
+	min := *config.Interval / 60
 	cron := tools.CreateCronExpression(min)
 	logrus.Infof("cron expression made: %s", cron)
-	ruleName := tools.GenerateRuleName(region, config.Name)
+	ruleName := tools.GenerateRuleName(region, *config.Name)
 
 	ruleArn, err := cw.PutRule(ruleName, cron)
 	if err != nil {
@@ -287,7 +291,7 @@ func (r *Runner) CreateTrigger(config *schema.Config) error {
 	}
 	logrus.Infof("Cloudwatch rule is successfully created: %s", *ruleArn)
 
-	funcName := tools.GenerateNewWorkerName(region, config.Name, constants.ManagerMode)
+	funcName := tools.GenerateNewWorkerName(&region, config.Name, constants.ManagerMode, false)
 	funcARN, err := lambda.GetFunctionARN(funcName)
 	if err != nil {
 		return err
@@ -343,13 +347,13 @@ func (r *Runner) Delete(args []string) error {
 	if len(name) == 0 {
 		return errors.New("please choose or specify the worker name")
 	}
-	logrus.Infof("Deleting the bigshot rule: %s", name)
+	logrus.Debugf("Deleting the bigshot rule: %s", name)
 
 	if err := r.SetGenerator(); err != nil {
 		return err
 	}
 
-	r.OverrideName(name)
+	r.OverrideName(&name)
 
 	region, err := builder.GetDefaultRegion(constants.DefaultProfile)
 	if err != nil {
@@ -359,7 +363,7 @@ func (r *Runner) Delete(args []string) error {
 	cw := client.NewCloudWatchClient(region)
 	lambda := client.NewLambdaClient(region)
 
-	funcName := tools.GenerateNewWorkerName(region, name, constants.ManagerMode)
+	funcName := tools.GenerateNewWorkerName(&region, &name, constants.ManagerMode, false)
 	if err := lambda.DeletePermission(funcName); err != nil {
 		return err
 	}
@@ -432,7 +436,7 @@ func (r *Runner) RunServer() error {
 // PrintSummary prints summary of template
 func (r *Runner) PrintSummaryTemplates(names []string) error {
 	dynamoDB := client.NewDynamoDBClient(r.Builder.DefaultRegion)
-	var configs []*schema.Config
+	var configs []*schema.Template
 	for _, name := range names {
 		item, err := dynamoDB.GetTemplate(name, tools.GenerateNewTableName())
 		if err != nil {
@@ -455,9 +459,9 @@ func (r *Runner) PrintSummaryTemplates(names []string) error {
 }
 
 // PrintTemplate prints the summary of templates
-func PrintTemplate(configs []*schema.Config) error {
+func PrintTemplate(configs []*schema.Template) error {
 	var data = struct {
-		Summary []*schema.Config
+		Summary []*schema.Template
 	}{
 		Summary: configs,
 	}
@@ -479,16 +483,16 @@ func PrintTemplate(configs []*schema.Config) error {
 	return w.Flush()
 }
 
-// mapConfig maps configuration with dynamodb itme
-func mapConfig(item map[string]*dynamodb.AttributeValue) (*schema.Config, error) {
-	var err error
-	conf := schema.Config{}
+// mapConfig maps configuration with dynamodb item
+func mapConfig(item map[string]*dynamodb.AttributeValue) (*schema.Template, error) {
+	conf := schema.Template{}
 	for k, v := range item {
 		switch k {
 		case "name":
-			conf.Name = *v.S
+			conf.Name = v.S
 		case "interval":
-			conf.Interval, _ = strconv.Atoi(*v.N)
+			interval, _ := strconv.Atoi(*v.N)
+			conf.Interval = &interval
 		case "regions":
 			var regions []schema.Region
 			for _, region := range v.L {
@@ -508,10 +512,12 @@ func mapConfig(item map[string]*dynamodb.AttributeValue) (*schema.Config, error)
 			}
 			conf.Targets = targets
 		case "timeout":
-			conf.Timeout, err = strconv.Atoi(*v.N)
+			timeout, err := strconv.Atoi(*v.N)
 			if err != nil {
 				return nil, err
 			}
+
+			conf.Timeout = &timeout
 		}
 	}
 
@@ -521,30 +527,28 @@ func mapConfig(item map[string]*dynamodb.AttributeValue) (*schema.Config, error)
 // regionConfig creates region config struct
 func regionConfig(region string) schema.Region {
 	return schema.Region{
-		Region: region,
+		Region: &region,
 	}
 }
 
 // targetConfig creates target config struct
 func targetConfig(method, url string) schema.Target {
 	return schema.Target{
-		Method: method,
-		URL:    url,
+		Method: &method,
+		URL:    &url,
 	}
 }
 
 // SetGenerator setup a new Generator
 func (r *Runner) SetGenerator() error {
-	gn := generator.New()
+	r.Generator = generator.New()
 
 	checkDryRun(r.Builder.Flags.DryRun)
 
-	err := gn.Init(r.Builder.Flags, r.Builder.Config)
+	err := r.Generator.Init(r.Builder.Flags, r.Builder.Config)
 	if err != nil {
 		return err
 	}
-
-	r.Generator = gn
 
 	return nil
 }
@@ -634,10 +638,20 @@ func makeDetachIAMRolePolicyFunc() func(w *worker.Worker, ch chan error) {
 // makeDeleteLambdaWorkerFunc creates a go routine function for creating Lambda lambda
 func makeDeleteLambdaWorkerFunc() func(w *worker.Worker, ch chan error) {
 	return func(w *worker.Worker, ch chan error) {
-		err := w.DeleteWorker()
-		if err != nil {
-			w.Error = err
+		retry := baseRetryCount
+		var err error
+		for retry > 0 {
+			err = w.DeleteWorker()
+			if err != nil {
+				w.Error = err
+				retry--
+			} else {
+				break
+			}
+
+			time.Sleep(tools.GetExponentialTime(baseRetryCount, retry))
 		}
+
 		ch <- err
 	}
 }
@@ -649,7 +663,7 @@ func makeUpdateLambdaWorkerCodeFunc() func(w *worker.Worker, ch chan error) {
 			w.Error = err
 			ch <- err
 		}
-		logrus.Infof("Worker update is done in %s", w.GetRegion())
+		logrus.Debugf("Worker update is done in %s", w.GetRegion())
 		ch <- nil
 	}
 }
@@ -705,9 +719,9 @@ func (r *Runner) FindAllNames() ([]string, error) {
 }
 
 // OverrideName will override the configuration name
-func (r *Runner) OverrideName(name string) {
+func (r *Runner) OverrideName(name *string) {
 	if r.Builder.Config == nil {
-		r.Builder.Config = &schema.Config{
+		r.Builder.Config = &schema.Template{
 			Name: name,
 		}
 

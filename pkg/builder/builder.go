@@ -24,6 +24,7 @@ import (
 	"reflect"
 	"strings"
 
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 	"gopkg.in/ini.v1"
@@ -35,7 +36,7 @@ import (
 )
 
 type Builder struct {
-	Config        *schema.Config
+	Config        *schema.Template
 	Flags         Flags
 	DefaultRegion string
 }
@@ -60,26 +61,36 @@ func (b *Builder) Validate() error {
 		return errors.New("there is no targets to check")
 	}
 
-	if len(b.Config.Name) == 0 {
+	if b.Config.Name == nil {
 		return errors.New("template name is required")
 	}
 
+	hasInternal := false
+	for _, target := range b.Config.Targets {
+		if !tools.IsStringInArray(*target.Method, constants.AllowedMethods) {
+			return fmt.Errorf("method for API check is not allowed: %s", *target.Method)
+		}
+
+		if target.URL == nil || target.Port == nil {
+			return fmt.Errorf("URL and port are required")
+		}
+
+		if *target.Method == "GET" && len(target.Body) > 0 {
+			return errors.New("you cannot set body values to GET request")
+		}
+	}
+
+	hasRegionInternal := false
 	if len(b.Config.Regions) > 0 {
 		for _, region := range b.Config.Regions {
-			if tools.IsStringInArray(region.Region, constants.UnSupportedAWSRegion) {
-				return fmt.Errorf("unsupported region: %s", region.Region)
+			if len(region.SecurityGroups) > 0 && len(region.Subnets) > 0 {
+				hasRegionInternal = true
 			}
 		}
 	}
 
-	for _, target := range b.Config.Targets {
-		if !tools.IsStringInArray(target.Method, constants.AllowedMethods) {
-			return fmt.Errorf("method for API check is not allowed: %s", target.Method)
-		}
-
-		if target.Method == "GET" && len(target.Body) > 0 {
-			return errors.New("you cannot set body values to GET request")
-		}
+	if hasInternal && !hasRegionInternal {
+		return fmt.Errorf("you have no region available to run internal API check")
 	}
 
 	return nil
@@ -100,7 +111,7 @@ func ValidateFlags(flags Flags) error {
 
 // CreateNewBuilder creates new builder
 func CreateNewBuilder(flags Flags) (*Builder, error) {
-	var config *schema.Config
+	var config schema.Template
 
 	region, err := GetDefaultRegion(constants.DefaultProfile)
 	if err != nil {
@@ -109,41 +120,40 @@ func CreateNewBuilder(flags Flags) (*Builder, error) {
 
 	if len(flags.Config) == 0 {
 		logrus.Debug("You have no config file")
-		return New(config, flags, region), nil
+		return New(nil, flags, region), nil
 	}
 
 	if !tools.FileExists(flags.Config) {
 		return nil, fmt.Errorf("configuration file does not exist: %s", flags.Config)
 	}
 
-	config, err = ParseConfig(flags.Config)
+	err = ParseConfig(&config, flags.Config)
 	if err != nil {
 		return nil, err
 	}
 
-	return New(config, flags, region), nil
+	return New(&config, flags, region), nil
 }
 
 // ParseConfig parses configuration file
-func ParseConfig(configFile string) (*schema.Config, error) {
-	var config *schema.Config
+func ParseConfig(template *schema.Template, configFile string) error {
 	file, err := ioutil.ReadFile(configFile)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	err = yaml.Unmarshal(file, &config)
+	err = yaml.Unmarshal(file, &template)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	return config, nil
+	return nil
 }
 
 // New creates a new builder
-func New(config *schema.Config, flags Flags, region string) *Builder {
+func New(template *schema.Template, flags Flags, region string) *Builder {
 	return SetDefault(Builder{
-		Config:        config,
+		Config:        template,
 		Flags:         flags,
 		DefaultRegion: region,
 	})
@@ -152,11 +162,11 @@ func New(config *schema.Config, flags Flags, region string) *Builder {
 // SetDefault returns builder with default value
 func SetDefault(b Builder) *Builder {
 	if b.Config != nil {
-		if b.Config.Timeout == 0 {
-			b.Config.Timeout = constants.DefaultTimeout
+		if b.Config.Timeout == nil || *b.Config.Timeout == 0 {
+			b.Config.Timeout = aws.Int(constants.DefaultTimeout)
 		}
-		if b.Config.Interval == 0 {
-			b.Config.Interval = constants.DefaultInterval
+		if b.Config.Interval == nil || *b.Config.Interval == 0 {
+			b.Config.Interval = aws.Int(constants.DefaultInterval)
 		}
 	}
 

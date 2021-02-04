@@ -28,28 +28,28 @@ import (
 )
 
 type Worker struct {
-	Region       string
 	Mode         string
 	RoleArn      *string
 	ZipFile      []byte
 	Template     string
-	AppName      string
-	Timeout      int
 	DryRun       bool
+	Internal     bool
 	Error        error
+	Region       *schema.Region
+	Config       *schema.Template
 	LambdaClient *client.Lambda
 	IAMClient    *client.IAM
 }
 
 // New creates a new lambda for specific region
-func New(region string, zipFile []byte, timeout int, name string, dryRun bool) *Worker {
+func New(region string, zipFile []byte, config *schema.Template, dryRun, internal bool) *Worker {
 	w := Worker{
-		Region:       region,
+		Region:       getWorkerRegion(region, config.Regions),
 		RoleArn:      nil,
 		Mode:         constants.WorkerMode,
-		Timeout:      timeout,
-		AppName:      name,
+		Config:       config,
 		DryRun:       dryRun,
+		Internal:     internal,
 		LambdaClient: client.NewLambdaClient(region),
 		IAMClient:    client.NewIAMClient(region),
 	}
@@ -60,9 +60,20 @@ func New(region string, zipFile []byte, timeout int, name string, dryRun bool) *
 	return &w
 }
 
+// getWorkerRegion get worker region configuration from Regions configuration
+func getWorkerRegion(region string, regions []schema.Region) *schema.Region {
+	for _, reg := range regions {
+		if *reg.Region == region {
+			return &reg
+		}
+	}
+
+	return &schema.Region{Region: &region}
+}
+
 // GetRegion returns region of workers
 func (w *Worker) GetRegion() string {
-	return w.Region
+	return *w.Region.Region
 }
 
 // SetMode sets mode of lambda
@@ -79,10 +90,10 @@ func (w *Worker) SetTemplate(template string) {
 
 // CreateWorkerRole creates lambdaRole
 func (w *Worker) CreateWorkerRole() error {
-	roleName := tools.GenerateNewLambdaRoleName(w.Region, w.AppName)
+	roleName := tools.GenerateNewLambdaRoleName(w.Region.Region, w.Config.Name)
 
 	if w.DryRun {
-		logrus.Infof("[%s]IAM role will be created: %s", w.Region, roleName)
+		logrus.Debugf("[V] IAM role created: %s, %s", *w.Region.Region, roleName)
 		return nil
 	}
 
@@ -98,17 +109,17 @@ func (w *Worker) CreateWorkerRole() error {
 		}
 	}
 
-	logrus.Infof("IAM role for lambda is ready in %s", w.GetRegion())
+	logrus.Debugf("IAM role for lambda is ready in %s", w.GetRegion())
 
 	return nil
 }
 
 // AttachWorkerRolePolicy attaches IAM Policy to IAM role
 func (w *Worker) AttachWorkerRolePolicy() error {
-	roleName := tools.GenerateNewLambdaRoleName(w.Region, w.AppName)
+	roleName := tools.GenerateNewLambdaRoleName(w.Region.Region, w.Config.Name)
 
 	if w.DryRun {
-		logrus.Infof("[%s]Lambda STS Policy will be attached to the role: %s", w.Region, roleName)
+		logrus.Debugf("[%s]Lambda STS Policy will be attached to the role: %s", *w.Region.Region, roleName)
 		return nil
 	}
 
@@ -124,17 +135,17 @@ func (w *Worker) AttachWorkerRolePolicy() error {
 
 	w.RoleArn = roleArn
 
-	logrus.Infof("IAM role policy is successfully attached in %s", w.GetRegion())
+	logrus.Debugf("IAM role policy is successfully attached in %s", w.GetRegion())
 
 	return nil
 }
 
 // CreateWorker creates lambda
 func (w *Worker) CreateWorker() error {
-	workerConfig := config.GetBaseWorkerConfig(w.Region, w.Mode, w.AppName, w.RoleArn, w.ZipFile, w.Timeout)
+	workerConfig := GetBaseWorkerConfig(w)
 
 	if w.DryRun {
-		logrus.Infof("[%s]Lambda worker will be created: %s", w.Region, workerConfig.Name)
+		logrus.Debugf("[%s]Lambda worker will be created: %s", *w.Region.Region, workerConfig.Name)
 		return nil
 	}
 
@@ -143,14 +154,14 @@ func (w *Worker) CreateWorker() error {
 		return err
 	}
 
-	logrus.Infof("Worker function is ready in %s", w.GetRegion())
+	logrus.Debugf("Worker function is ready in %s", w.GetRegion())
 
 	return nil
 }
 
 // DeleteWorkerRole deletes a lambdaRole
 func (w *Worker) DeleteWorkerRole() error {
-	roleName := tools.GenerateNewLambdaRoleName(w.Region, w.AppName)
+	roleName := tools.GenerateNewLambdaRoleName(w.Region.Region, w.Config.Name)
 
 	err := w.IAMClient.DeleteIamRoleForLambda(roleName)
 	if err != nil {
@@ -162,7 +173,7 @@ func (w *Worker) DeleteWorkerRole() error {
 
 // DetachWorkerRolePolicy detaches IAM Policy from IAM role
 func (w *Worker) DetachWorkerRolePolicy() error {
-	roleName := tools.GenerateNewLambdaRoleName(w.Region, w.AppName)
+	roleName := tools.GenerateNewLambdaRoleName(w.Region.Region, w.Config.Name)
 
 	err := w.IAMClient.DetachIAMPolicy(roleName)
 	if err != nil {
@@ -174,7 +185,7 @@ func (w *Worker) DetachWorkerRolePolicy() error {
 
 // DeleteWorker creates lambda
 func (w *Worker) DeleteWorker() error {
-	err := w.LambdaClient.DeleteFunction(tools.GenerateNewWorkerName(w.Region, w.AppName, w.Mode))
+	err := w.LambdaClient.DeleteFunction(tools.GenerateNewWorkerName(w.Region.Region, w.Config.Name, w.Mode, w.Internal))
 	if err != nil {
 		return err
 	}
@@ -184,23 +195,23 @@ func (w *Worker) DeleteWorker() error {
 
 // UpdateWorkerCode updates lambda
 func (w *Worker) UpdateWorkerCode() error {
-	funcName := tools.GenerateNewWorkerName(w.Region, w.AppName, w.Mode)
-	workerConfig := config.GetBaseWorkerConfig(w.Region, w.Mode, w.Template, w.RoleArn, w.ZipFile, w.Timeout)
+	funcName := tools.GenerateNewWorkerName(w.Region.Region, w.Config.Name, w.Mode, w.Internal)
+	workerConfig := GetBaseWorkerConfig(w)
 
 	if workerConfig.ZipFile != nil {
 		if err := w.LambdaClient.UpdateFunctionCode(funcName, workerConfig.ZipFile); err != nil {
 			return err
 		}
 	} else {
-		logrus.Infof("function code is not updated: %s", w.Region)
+		logrus.Debugf("function code is not updated: %s", *w.Region.Region)
 	}
 
 	return nil
 }
 
 // UpdateWorkerTemplate updates lambda
-func (w *Worker) UpdateWorkerTemplate(c *schema.Config) error {
-	workerConfig := config.GetBaseWorkerConfig(w.Region, w.Mode, w.Template, w.RoleArn, w.ZipFile, w.Timeout)
+func (w *Worker) UpdateWorkerTemplate(c *schema.Template) error {
+	workerConfig := GetBaseWorkerConfig(w)
 
 	if err := w.LambdaClient.UpdateTemplate(workerConfig); err != nil {
 		return err
@@ -213,11 +224,43 @@ func (w *Worker) UpdateWorkerTemplate(c *schema.Config) error {
 
 	// update the configuration
 	tableName := tools.GenerateNewTableName()
-	if err := con.DynamoDBClient.SaveItem(*con.Config, tableName); err != nil {
+	if err := con.DynamoDBClient.SaveItem(*con.Template, tableName); err != nil {
 		return err
 	}
 
-	logrus.Info("Update template is done")
+	logrus.Debugln("Update template is done")
 
 	return nil
+}
+
+// GetBaseWorkerConfig returns base lambda configuration
+func GetBaseWorkerConfig(worker *Worker) config.Config {
+	env := config.GetEnvironmentVariables(worker.Region.Region, worker.Mode, worker.Config.Name)
+	cf := config.Config{
+		Name:                 tools.GenerateNewWorkerName(worker.Region.Region, worker.Config.Name, worker.Mode, worker.Internal),
+		Description:          tools.GenerateDescription(worker.Region.Region),
+		EnvironmentVariables: env,
+		Handler:              "out/code/lambda/handler",
+		MemorySize:           int64(256),
+		Tags:                 config.GetTags(worker.Region.Region, worker.Mode),
+		Role:                 worker.RoleArn,
+		Publish:              true,
+		Internal:             worker.Internal,
+		Runtime:              constants.GoRunTime,
+		Timeout:              int64(*worker.Config.Timeout),
+	}
+
+	if worker.ZipFile != nil {
+		cf.ZipFile = worker.ZipFile
+	} else {
+		cf.S3Bucket = constants.DefaultS3Bucket
+		cf.S3Key = constants.DefaultS3Key
+	}
+
+	if worker.Internal {
+		cf.SecurityGroups = worker.Region.SecurityGroups
+		cf.Subnets = worker.Region.Subnets
+	}
+
+	return cf
 }

@@ -35,6 +35,7 @@ type Generator struct {
 	Controller *controller.Controller
 	Workers    []*worker.Worker
 	Channel    *Channel
+	Mode       string
 }
 
 type Channel struct {
@@ -57,11 +58,28 @@ func New() *Generator {
 }
 
 // Init initiates a generator for bigshot
-func (g *Generator) Init(flags builder.Flags, config *schema.Config) error {
+func (g *Generator) Init(flags builder.Flags, template *schema.Template) error {
 	// Variables
 	var ws []*worker.Worker
 	var zipFile []byte
 	var err error
+
+	if err := CheckInternalSetting(template); err != nil {
+		return err
+	}
+
+	regions, err := GetRegionsFromTemplate(template, flags.AllRegion)
+	if err != nil {
+		return err
+	}
+
+	// Check if regions in template.Targets exist in regions configuration
+	regionIDs := getRegionIDs(regions)
+	if template != nil {
+		if err := CheckAvailableRegions(regionIDs, template.Targets); err != nil {
+			return err
+		}
+	}
 
 	// Worker Setup
 	if len(flags.ZipFile) > 0 {
@@ -71,61 +89,85 @@ func (g *Generator) Init(flags builder.Flags, config *schema.Config) error {
 		}
 	}
 
-	regions, err := GetRegions(config, flags.AllRegion)
+	// for normal lambda ( Not provisioned in VPC )
+	for _, region := range regions {
+		ws = append(ws, worker.New(*region.Region, zipFile, template, flags.DryRun, false))
+	}
+
+	// setup controller for managing workers
+	cont, err := controller.New(template)
 	if err != nil {
 		return err
 	}
 
-	timeout := constants.DefaultTimeout
-	name := tools.GenerateRandomName()
-	if config != nil {
-		timeout = config.Timeout
-		name = config.Name
-	}
-
-	for _, region := range regions {
-		ws = append(ws, worker.New(region, zipFile, timeout, name, flags.DryRun))
-	}
-
-	// Controller setup
-	if config != nil {
-		cont, err := controller.New(config)
-		if err != nil {
-			return err
-		}
-
-		if cont != nil {
-			g.SetController(cont)
-			controllerWorker := worker.New(cont.GetRegion(), zipFile, timeout, name, flags.DryRun)
-			controllerWorker.SetMode(constants.ManagerMode)
-			controllerWorker.SetTemplate(cont.Config.Name)
-			ws = append(ws, controllerWorker)
-		}
+	if cont != nil {
+		g.SetController(cont)
+		controllerWorker := worker.New(cont.GetRegion(), zipFile, template, flags.DryRun, false)
+		controllerWorker.SetMode(constants.ManagerMode)
+		controllerWorker.SetTemplate(*cont.Template.Name)
+		ws = append(ws, controllerWorker)
 	}
 
 	g.SetWorkers(ws)
 
+	// for internal lambda -> provisioned in VPC
+	if err := g.InitInternalWorkers(flags, template, zipFile); err != nil {
+		return nil
+	}
+
 	return nil
 }
 
-// GetRegions retrieves region list from tis list
-func GetRegions(config *schema.Config, allRegion bool) ([]string, error) {
-	if allRegion {
-		return constants.AllAWSRegions, nil
+// InitInternalWorkers initiates workers for bigshot
+func (g *Generator) InitInternalWorkers(flags builder.Flags, template *schema.Template, zipFile []byte) error {
+	var ws []*worker.Worker
+	var regionIDs []string
+
+	if template.Targets != nil {
+		regionIDs = getInternalNeedsRegion(template.Targets)
+	} else {
+		regionIDs = constants.AllAWSRegions
 	}
 
-	var regions []string
-	if config == nil {
-		defaultRegion, err := builder.GetDefaultRegion(constants.DefaultProfile)
-		if err != nil {
-			return nil, err
+	// for internal lambda -> provisioned in VPC
+	for _, region := range regionIDs {
+		ws = append(ws, worker.New(region, zipFile, template, flags.DryRun, true))
+	}
+	g.AddWorkers(ws)
+
+	return nil
+}
+
+// GetRegionsFromTemplate retrieves region list from configuration
+func GetRegionsFromTemplate(template *schema.Template, allRegion bool) ([]schema.Region, error) {
+	var regions []schema.Region
+
+	if template == nil && template.Regions == nil {
+		if allRegion {
+			for _, region := range constants.AllAWSRegions {
+				regions = append(regions, schema.Region{
+					Region: &region,
+				})
+			}
+		} else {
+			defaultRegion, err := builder.GetDefaultRegion(constants.DefaultProfile)
+			if err != nil {
+				return nil, err
+			}
+			regions = append(regions, schema.Region{
+				Region: &defaultRegion,
+			})
 		}
-		regions = append(regions, defaultRegion)
-		return regions, nil
-	}
+	} else {
+		regions = template.Regions
 
-	for _, region := range config.Regions {
-		regions = append(regions, region.Region)
+		if allRegion {
+			for _, region := range constants.AllAWSRegions {
+				regions = append(regions, schema.Region{
+					Region: &region,
+				})
+			}
+		}
 	}
 
 	return regions, nil
@@ -134,6 +176,11 @@ func GetRegions(config *schema.Config, allRegion bool) ([]string, error) {
 // SetWorkers sets lambda structures
 func (g *Generator) SetWorkers(ws []*worker.Worker) {
 	g.Workers = ws
+}
+
+// AddWorkers adds lambda structures
+func (g *Generator) AddWorkers(ws []*worker.Worker) {
+	g.Workers = append(g.Workers, ws...)
 }
 
 // SetController sets controller structure
@@ -185,4 +232,69 @@ func SelectFromCommand() ([]string, error) {
 	}
 
 	return targets, nil
+}
+
+// checkAvailableRegions checks if regions in target configuration exist in regions configuration
+func CheckAvailableRegions(regions []string, targets []schema.Target) error {
+	for _, target := range targets {
+		if target.Regions != nil && len(target.Regions) > 0 {
+			for _, region := range target.Regions {
+				if !tools.IsStringInArray(region, regions) {
+					return fmt.Errorf("%s is not in the region list: %s", region, *target.URL)
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// CheckInternalSetting checks if regions configuration has internal settings
+func CheckInternalSetting(template *schema.Template) error {
+	if template == nil && template.Targets == nil {
+		return nil
+	}
+
+	for _, target := range template.Targets {
+		if target.Internal != nil && *target.Internal {
+			for _, region := range target.Regions {
+				for _, regionObj := range template.Regions {
+					if *regionObj.Region == region {
+						if len(regionObj.SecurityGroups) == 0 || len(regionObj.Subnets) == 0 {
+							return fmt.Errorf("%s region has no security groups or subnet settings in Region configuration", region)
+						}
+						break
+					}
+				}
+			}
+		}
+	}
+
+	return nil
+}
+
+// getRegionIDs retrieves regions IDs
+func getRegionIDs(regions []schema.Region) []string {
+	var ret []string
+	for _, region := range regions {
+		ret = append(ret, *region.Region)
+	}
+
+	return ret
+}
+
+// getInternalNeedsRegion retrieves region list for internal lambda
+func getInternalNeedsRegion(targets []schema.Target) []string {
+	var ret []string
+	for _, target := range targets {
+		if target.Internal != nil && *target.Internal {
+			for _, region := range target.Regions {
+				if !tools.IsStringInArray(region, ret) {
+					ret = append(ret, region)
+				}
+			}
+		}
+	}
+
+	return ret
 }

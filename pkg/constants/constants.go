@@ -136,13 +136,6 @@ var (
 		"us-west-2",
 	}
 
-	UnSupportedAWSRegion = []string{
-		"af-south-1",
-		"ap-east-1",
-		"me-south-1",
-		"eu-south-1",
-	}
-
 	// AWSCredentialsPath is the file path of aws credentials
 	AWSCredentialsPath = HomeDir() + "/.aws/credentials"
 

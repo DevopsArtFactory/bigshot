@@ -51,6 +51,7 @@ type Tracer struct {
 	Rate     int
 	Duration time.Duration
 	Target   string
+	Port     string
 	Method   string
 	Body     map[string]string
 	Header   map[string]string
@@ -77,16 +78,15 @@ func (t *Tracer) SetTimeout(i int) {
 }
 
 // SetTarget sets the target for the request
-func (t *Tracer) SetTarget(s string) {
-	logrus.Infof("Target: %s", s)
-	t.Target = s
-	if strings.HasPrefix(s, "http://") {
+func (t *Tracer) SetTarget(url, port string) {
+	logrus.Infof("Target: %s, Port: %s", url, port)
+	if port == "443" {
+		t.Protocol = constants.HTTPS
+	} else {
 		t.Protocol = constants.HTTP
 	}
-
-	if strings.HasPrefix(s, "https://") {
-		t.Protocol = constants.HTTPS
-	}
+	t.Port = port
+	t.Target = fmt.Sprintf("%s://%s:%s", strings.ToLower(t.Protocol), url, t.Port)
 }
 
 // SetLogLevel sets loglevel

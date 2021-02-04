@@ -85,7 +85,7 @@ func (v *Vegeta) SetRate(freq int) {
 }
 
 // SetTarget sets target for api call
-func (v *Vegeta) SetTarget(url string) {
+func (v *Vegeta) SetTarget(url, port string) {
 	v.Targeter = vegeta.NewStaticTargeter(vegeta.Target{
 		Method: "GET",
 		URL:    url,

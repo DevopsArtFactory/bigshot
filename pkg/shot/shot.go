@@ -28,7 +28,7 @@ type Shooter interface {
 	SetRate(int)
 	SetTimeout(int)
 	SetLogLevel(string)
-	SetTarget(string)
+	SetTarget(string, string)
 	SetMethod(string)
 	SetBody(map[string]string)
 	SetHeader(map[string]string)
@@ -62,8 +62,8 @@ func Shoot(target schema.Target, resultNeeded bool) (*schema.Result, error) {
 	if shooter == nil {
 		return nil, errors.New("cannot create new finder")
 	}
-	shooter.SetTarget(target.URL)
-	shooter.SetMethod(target.Method)
+	shooter.SetTarget(*target.URL, *target.Port)
+	shooter.SetMethod(*target.Method)
 	if target.Body != nil {
 		shooter.SetBody(target.Body)
 	}

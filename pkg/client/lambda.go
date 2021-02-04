@@ -66,6 +66,13 @@ func (l Lambda) CreateFunction(config config.Config) (*string, error) {
 		Role:       config.Role,
 	}
 
+	if config.Internal {
+		input.VpcConfig = &lambda.VpcConfig{
+			SecurityGroupIds: aws.StringSlice(config.SecurityGroups),
+			SubnetIds:        aws.StringSlice(config.Subnets),
+		}
+	}
+
 	if config.ZipFile != nil {
 		input.Code = &lambda.FunctionCode{
 			ZipFile: config.ZipFile,
@@ -103,7 +110,7 @@ func (l Lambda) DeleteFunction(name string) error {
 	if err != nil {
 		if aerr, ok := err.(awserr.Error); ok {
 			if aerr.Code() == lambda.ErrCodeResourceNotFoundException {
-				logrus.Infof("Lambda function is already deleted: %s", name)
+				logrus.Debugf("Lambda function is already deleted: %s", name)
 				return nil
 			}
 		}
@@ -111,7 +118,7 @@ func (l Lambda) DeleteFunction(name string) error {
 		return err
 	}
 
-	logrus.Infof("Lambda function is successfully deleted: %s", name)
+	logrus.Debugf("Lambda function is successfully deleted: %s", name)
 
 	return nil
 }
@@ -159,8 +166,8 @@ func (l Lambda) UpdateTemplate(config config.Config) error {
 }
 
 // Trigger will invoke lambda function
-func (l *Lambda) Trigger(region string, template string, payload []byte) error {
-	functionName := tools.GenerateNewWorkerName(region, template, constants.WorkerMode)
+func (l *Lambda) Trigger(region *string, template *string, payload []byte, internal bool) error {
+	functionName := tools.GenerateNewWorkerName(region, template, constants.WorkerMode, internal)
 
 	input := &lambda.InvokeInput{
 		FunctionName: aws.String(functionName),

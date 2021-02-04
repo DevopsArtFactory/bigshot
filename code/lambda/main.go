@@ -104,6 +104,7 @@ func RunTest(flags *Flags) error {
 	case constants.ManagerMode:
 		return workermanager.New().RunTest()
 	case constants.WorkerMode:
+		fmt.Println("test")
 		slackURL := flags.SlackURL
 		var slacks []string
 		if len(slackURL) > 0 {
