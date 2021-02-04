@@ -18,6 +18,7 @@ package worker
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 
 	"github.com/DevopsArtFactory/bigshot/code/lambda/env"
@@ -79,6 +80,7 @@ func Shoot(t, region string, evt event.Event) error {
 		return errors.New("no target specified")
 	}
 
+	fmt.Println(evt)
 	shooter := shot.NewShooter(t, region)
 	if shooter == nil {
 		return errors.New("cannot find the right shooter for lambda")

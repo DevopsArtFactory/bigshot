@@ -147,7 +147,7 @@ func Trigger(item map[string]*dynamodb.AttributeValue) error {
 		}
 		err = lambdaClient.Trigger(regionData.Region, template.Name, payload, internal)
 		if err == nil {
-			logrus.Infof("function is successfully triggered: %s, %s", *regionData.Region, *target.URL)
+			logrus.Infof("function is successfully triggered: %s, %s, %s", *regionData.Region, *target.Port, *target.URL)
 		}
 
 		ch <- err

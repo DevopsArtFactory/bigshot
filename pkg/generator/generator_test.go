@@ -81,7 +81,7 @@ func TestCheckAvailableRegions(t *testing.T) {
 		},
 	}
 
-	regions, err := GetRegionsFromTemplate(config, false)
+	regions, err := GetRegionsFromTemplate(config, false, "ap-northeast-2")
 	if err != nil {
 		t.Errorf(err.Error())
 	}

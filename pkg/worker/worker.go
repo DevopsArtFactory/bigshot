@@ -48,6 +48,7 @@ func New(region string, zipFile []byte, config *schema.Template, dryRun, interna
 		RoleArn:      nil,
 		Mode:         constants.WorkerMode,
 		Config:       config,
+		Template:     *config.Name,
 		DryRun:       dryRun,
 		Internal:     internal,
 		LambdaClient: client.NewLambdaClient(region),
@@ -217,7 +218,7 @@ func (w *Worker) UpdateWorkerTemplate(c *schema.Template) error {
 		return err
 	}
 
-	con, err := controller.New(c)
+	con, err := controller.New(c, *w.Region.Region)
 	if err != nil {
 		return err
 	}
@@ -247,7 +248,10 @@ func GetBaseWorkerConfig(worker *Worker) config.Config {
 		Publish:              true,
 		Internal:             worker.Internal,
 		Runtime:              constants.GoRunTime,
-		Timeout:              int64(*worker.Config.Timeout),
+	}
+
+	if worker.Config.Timeout != nil {
+		cf.Timeout = int64(*worker.Config.Timeout)
 	}
 
 	if worker.ZipFile != nil {

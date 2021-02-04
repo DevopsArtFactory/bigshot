@@ -41,16 +41,18 @@ func (c *Controller) GetRegion() string {
 }
 
 // New returns new controller
-func New(config *schema.Template) (*Controller, error) {
-	defaultRegion, err := builder.GetDefaultRegion(constants.DefaultProfile)
-	if err != nil {
-		return nil, err
+func New(config *schema.Template, region string) (*Controller, error) {
+	var err error
+	if len(region) == 0 {
+		region, err = builder.GetDefaultRegion(constants.DefaultProfile)
+		if err != nil {
+			return nil, err
+		}
 	}
-
 	return &Controller{
 		Template:       config,
-		Region:         defaultRegion,
-		DynamoDBClient: client.NewDynamoDBClient(defaultRegion),
+		Region:         region,
+		DynamoDBClient: client.NewDynamoDBClient(region),
 	}, nil
 }
 

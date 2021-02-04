@@ -23,7 +23,6 @@ import (
 	"net/http"
 	"os"
 	"strconv"
-	"sync"
 	"text/tabwriter"
 	"time"
 
@@ -40,15 +39,12 @@ import (
 	"github.com/DevopsArtFactory/bigshot/pkg/server"
 	"github.com/DevopsArtFactory/bigshot/pkg/templates"
 	"github.com/DevopsArtFactory/bigshot/pkg/tools"
-	"github.com/DevopsArtFactory/bigshot/pkg/worker"
 )
 
 type Runner struct {
 	Builder   *builder.Builder
 	Generator *generator.Generator
 }
-
-var baseRetryCount = 3
 
 // New creates a new Runner
 func New(b *builder.Builder) *Runner {
@@ -59,7 +55,6 @@ func New(b *builder.Builder) *Runner {
 
 // Init creates global lambda functions for command line
 func (r *Runner) Init() error {
-	var wg sync.WaitGroup
 	logrus.Info("Initiates bigshot infrastructures")
 
 	if r.Builder.Config == nil {
@@ -79,51 +74,36 @@ func (r *Runner) Init() error {
 		}
 	}
 
-	openChannel := openChannel()
-	defer close(r.Generator.Channel.Output)
-
-	go openChannel(r.Generator.Channel, &wg)
-
-	createIAMRole := makeCreateIAMRoleFunc()
-	attachIAMPolicy := makeAttachIAMRolePolicyFunc()
-	createLambdaWorker := makeCreateLambdaWorkerFunc()
-
 	for _, w := range r.Generator.Workers {
-		wg.Add(1)
-		go createIAMRole(w, r.Generator.Channel.Input)
+		if err := w.CreateWorkerRole(); err != nil {
+			fmt.Println(err.Error())
+		}
 	}
-	wg.Wait()
 
 	if !r.Builder.Flags.DryRun {
 		tools.Wait(15, "Waiting %d seconds until IAM role is in effective...")
 	}
 
 	for _, w := range r.Generator.Workers {
-		wg.Add(1)
-		go attachIAMPolicy(w, r.Generator.Channel.Input)
-	}
-	wg.Wait()
-
-	for _, w := range r.Generator.Workers {
-		if w.Error == nil {
-			wg.Add(1)
-			go createLambdaWorker(w, r.Generator.Channel.Input)
+		if err := w.AttachWorkerRolePolicy(); err != nil {
+			fmt.Println(err.Error())
 		}
 	}
-	wg.Wait()
+
+	for _, w := range r.Generator.Workers {
+		if err := w.CreateWorker(); err != nil {
+			fmt.Println(err.Error())
+		}
+	}
 
 	if err := r.CreateTrigger(r.Builder.Config); err != nil {
 		return err
 	}
-
-	close(r.Generator.Channel.Input)
 	return nil
 }
 
 // Destroy deletes all resources of bigshot
 func (r *Runner) Destroy(args []string) error {
-	var wg sync.WaitGroup
-
 	name, err := r.GetTargetFunctionName(args)
 	if err != nil {
 		return err
@@ -137,37 +117,26 @@ func (r *Runner) Destroy(args []string) error {
 		return err
 	}
 
-	openChannel := openChannel()
-	defer close(r.Generator.Channel.Output)
-
-	go openChannel(r.Generator.Channel, &wg)
-
-	detachIAMPolicy := makeDetachIAMRolePolicyFunc()
-	deleteIAMRole := makeDeleteIAMRoleFunc()
-	deleteLambdaWorker := makeDeleteLambdaWorkerFunc()
-
 	for _, w := range r.Generator.Workers {
-		wg.Add(1)
-		go detachIAMPolicy(w, r.Generator.Channel.Input)
-	}
-	wg.Wait()
-
-	for _, w := range r.Generator.Workers {
-		wg.Add(1)
-		go deleteIAMRole(w, r.Generator.Channel.Input)
-	}
-	wg.Wait()
-
-	for _, w := range r.Generator.Workers {
-		if w.Error == nil {
-			wg.Add(1)
+		if err := w.DetachWorkerRolePolicy(); err != nil {
+			fmt.Println(err.Error())
 		}
-		go deleteLambdaWorker(w, r.Generator.Channel.Input)
+		time.Sleep(1 * time.Second)
 	}
-	wg.Wait()
-	close(r.Generator.Channel.Input)
 
-	PrintErrors(<-r.Generator.Channel.Output)
+	for _, w := range r.Generator.Workers {
+		if err := w.DeleteWorkerRole(); err != nil {
+			fmt.Println(err.Error())
+		}
+		time.Sleep(1 * time.Second)
+	}
+
+	for _, w := range r.Generator.Workers {
+		if err := w.DeleteWorker(); err != nil {
+			fmt.Println(err.Error())
+		}
+		time.Sleep(1 * time.Second)
+	}
 
 	// Delete cloudwatch rules
 	if err := r.Delete([]string{name}); err != nil {
@@ -183,10 +152,7 @@ func (r *Runner) UpdateCode(args []string) error {
 	if err != nil {
 		return err
 	}
-	logrus.Infof("Running bigshot infrastructures: %s", name)
-
-	var wg sync.WaitGroup
-	logrus.Info("Update code of bigshot infrastructures")
+	logrus.Infof("Update code of bigshot worker and manager: %s", name)
 
 	r.OverrideName(&name)
 
@@ -194,24 +160,11 @@ func (r *Runner) UpdateCode(args []string) error {
 		return err
 	}
 
-	openChannel := openChannel()
-	defer close(r.Generator.Channel.Output)
-
-	go openChannel(r.Generator.Channel, &wg)
-
-	updateLambdaWorkerCode := makeUpdateLambdaWorkerCodeFunc()
-
 	for _, w := range r.Generator.Workers {
-		if w.Error == nil {
-			wg.Add(1)
-			go updateLambdaWorkerCode(w, r.Generator.Channel.Input)
+		if err := w.UpdateWorkerCode(); err != nil {
+			fmt.Println(err.Error())
 		}
 	}
-	wg.Wait()
-	close(r.Generator.Channel.Input)
-
-	errors := <-r.Generator.Channel.Output
-	PrintErrors(errors)
 
 	return nil
 }
@@ -557,123 +510,6 @@ func (r *Runner) SetGenerator() error {
 func checkDryRun(dryRun bool) {
 	if dryRun {
 		logrus.Info("Dry run mode enabled")
-	}
-}
-
-// openChannel opens channel with input
-func openChannel() func(*generator.Channel, *sync.WaitGroup) {
-	var result []error
-	return func(ch *generator.Channel, wg *sync.WaitGroup) {
-		for re := range ch.Input {
-			if re != nil {
-				logrus.Error(re.Error())
-			}
-			result = append(result, re)
-			wg.Done()
-		}
-
-		ch.Output <- result
-	}
-}
-
-// makeCreateIAMRoleFunc creates a go routine function for creating IAM Role
-func makeCreateIAMRoleFunc() func(w *worker.Worker, ch chan error) {
-	return func(w *worker.Worker, ch chan error) {
-		if err := w.CreateWorkerRole(); err != nil {
-			w.Error = err
-			ch <- err
-			return
-		}
-		ch <- nil
-	}
-}
-
-// makeAttachIAMRolePolicyFunc creates a go routine function for attaching IAM Role policy
-func makeAttachIAMRolePolicyFunc() func(w *worker.Worker, ch chan error) {
-	return func(w *worker.Worker, ch chan error) {
-		if err := w.AttachWorkerRolePolicy(); err != nil {
-			w.Error = err
-			ch <- err
-			return
-		}
-		ch <- nil
-	}
-}
-
-// makeCreateLambdaWorkerFunc creates a go routine function for creating Lambda lambda
-func makeCreateLambdaWorkerFunc() func(w *worker.Worker, ch chan error) {
-	return func(w *worker.Worker, ch chan error) {
-		if err := w.CreateWorker(); err != nil {
-			w.Error = err
-			ch <- err
-		}
-		ch <- nil
-	}
-}
-
-// makeDeleteIAMRoleFunc creates a go routine function for deleting IAM Role
-func makeDeleteIAMRoleFunc() func(w *worker.Worker, ch chan error) {
-	return func(w *worker.Worker, ch chan error) {
-		err := w.DeleteWorkerRole()
-		if err != nil {
-			w.Error = err
-		}
-		ch <- err
-	}
-}
-
-// makeDetachIAMRolePolicyFunc creates a go routine function for detaching IAM Role policy
-func makeDetachIAMRolePolicyFunc() func(w *worker.Worker, ch chan error) {
-	return func(w *worker.Worker, ch chan error) {
-		if err := w.DetachWorkerRolePolicy(); err != nil {
-			w.Error = err
-			ch <- err
-			return
-		}
-		logrus.Infof("IAM role policy is successfully detached in %s", w.GetRegion())
-		ch <- nil
-	}
-}
-
-// makeDeleteLambdaWorkerFunc creates a go routine function for creating Lambda lambda
-func makeDeleteLambdaWorkerFunc() func(w *worker.Worker, ch chan error) {
-	return func(w *worker.Worker, ch chan error) {
-		retry := baseRetryCount
-		var err error
-		for retry > 0 {
-			err = w.DeleteWorker()
-			if err != nil {
-				w.Error = err
-				retry--
-			} else {
-				break
-			}
-
-			time.Sleep(tools.GetExponentialTime(baseRetryCount, retry))
-		}
-
-		ch <- err
-	}
-}
-
-// makeUpdateLambdaWorkerCodeFunc create a go routine function for updating Lambda lambda
-func makeUpdateLambdaWorkerCodeFunc() func(w *worker.Worker, ch chan error) {
-	return func(w *worker.Worker, ch chan error) {
-		if err := w.UpdateWorkerCode(); err != nil {
-			w.Error = err
-			ch <- err
-		}
-		logrus.Debugf("Worker update is done in %s", w.GetRegion())
-		ch <- nil
-	}
-}
-
-// PrintErrors prints errors
-func PrintErrors(errors []error) {
-	for _, err := range errors {
-		if err != nil {
-			logrus.Errorf(err.Error())
-		}
 	}
 }
 

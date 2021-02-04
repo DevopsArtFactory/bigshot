@@ -134,6 +134,7 @@ var (
 		"us-east-2",
 		"us-west-1",
 		"us-west-2",
+		"af-south-1",
 	}
 
 	// AWSCredentialsPath is the file path of aws credentials

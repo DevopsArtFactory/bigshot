@@ -22,6 +22,7 @@ import (
 	"strings"
 
 	"github.com/AlecAivazis/survey/v2"
+	"github.com/aws/aws-sdk-go/aws"
 
 	"github.com/DevopsArtFactory/bigshot/pkg/builder"
 	"github.com/DevopsArtFactory/bigshot/pkg/constants"
@@ -68,7 +69,7 @@ func (g *Generator) Init(flags builder.Flags, template *schema.Template) error {
 		return err
 	}
 
-	regions, err := GetRegionsFromTemplate(template, flags.AllRegion)
+	regions, err := GetRegionsFromTemplate(template, flags.AllRegion, flags.Region)
 	if err != nil {
 		return err
 	}
@@ -95,7 +96,7 @@ func (g *Generator) Init(flags builder.Flags, template *schema.Template) error {
 	}
 
 	// setup controller for managing workers
-	cont, err := controller.New(template)
+	cont, err := controller.New(template, flags.Region)
 	if err != nil {
 		return err
 	}
@@ -126,7 +127,12 @@ func (g *Generator) InitInternalWorkers(flags builder.Flags, template *schema.Te
 	if template.Targets != nil {
 		regionIDs = getInternalNeedsRegion(template.Targets)
 	} else {
-		regionIDs = constants.AllAWSRegions
+		regions, err := GetRegionsFromTemplate(template, flags.AllRegion, flags.Region)
+		if err != nil {
+			return err
+		}
+
+		regionIDs = getRegionIDs(regions)
 	}
 
 	// for internal lambda -> provisioned in VPC
@@ -139,14 +145,14 @@ func (g *Generator) InitInternalWorkers(flags builder.Flags, template *schema.Te
 }
 
 // GetRegionsFromTemplate retrieves region list from configuration
-func GetRegionsFromTemplate(template *schema.Template, allRegion bool) ([]schema.Region, error) {
+func GetRegionsFromTemplate(template *schema.Template, allRegion bool, regionSelected string) ([]schema.Region, error) {
 	var regions []schema.Region
 
-	if template == nil && template.Regions == nil {
+	if template == nil || template.Regions == nil {
 		if allRegion {
 			for _, region := range constants.AllAWSRegions {
 				regions = append(regions, schema.Region{
-					Region: &region,
+					Region: aws.String(region),
 				})
 			}
 		} else {
@@ -154,8 +160,13 @@ func GetRegionsFromTemplate(template *schema.Template, allRegion bool) ([]schema
 			if err != nil {
 				return nil, err
 			}
+
+			if len(regionSelected) > 0 {
+				defaultRegion = regionSelected
+			}
+
 			regions = append(regions, schema.Region{
-				Region: &defaultRegion,
+				Region: aws.String(defaultRegion),
 			})
 		}
 	} else {
@@ -164,7 +175,7 @@ func GetRegionsFromTemplate(template *schema.Template, allRegion bool) ([]schema
 		if allRegion {
 			for _, region := range constants.AllAWSRegions {
 				regions = append(regions, schema.Region{
-					Region: &region,
+					Region: aws.String(region),
 				})
 			}
 		}
@@ -238,15 +249,24 @@ func SelectFromCommand() ([]string, error) {
 func CheckAvailableRegions(regions []string, targets []schema.Target) error {
 	for _, target := range targets {
 		if target.Regions != nil && len(target.Regions) > 0 {
-			for _, region := range target.Regions {
-				if !tools.IsStringInArray(region, regions) {
-					return fmt.Errorf("%s is not in the region list: %s", region, *target.URL)
-				}
+			if hasUnsupportedRegion(target, regions) {
+				return fmt.Errorf("unsupported region exist in target: %s", *target.URL)
 			}
 		}
 	}
 
 	return nil
+}
+
+// hasUnsupportedRegion checks if there is any unsupported region
+func hasUnsupportedRegion(target schema.Target, regions []string) bool {
+	for _, region := range target.Regions {
+		if !tools.IsStringInArray(region, regions) {
+			return true
+		}
+	}
+
+	return false
 }
 
 // CheckInternalSetting checks if regions configuration has internal settings
