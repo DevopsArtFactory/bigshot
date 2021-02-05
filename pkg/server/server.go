@@ -38,7 +38,7 @@ type Config struct {
 }
 
 type RequestBody struct {
-	Config schema.Config `json:"config"`
+	Config schema.Template `json:"config"`
 }
 
 // New creates a new Server struct

@@ -20,7 +20,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/aws/aws-sdk-go/aws"
+
 	"github.com/DevopsArtFactory/bigshot/pkg/constants"
+	"github.com/DevopsArtFactory/bigshot/pkg/schema"
 )
 
 func TestGetTargetRegions(t *testing.T) {
@@ -51,5 +54,47 @@ func TestGetTargetRegions(t *testing.T) {
 		if strings.Join(r, ",") != strings.Join(td.Output, ",") {
 			t.Errorf("expected: %v / output: %v", td.Output, r)
 		}
+	}
+}
+
+func TestCheckAvailableRegions(t *testing.T) {
+	config := &schema.Template{
+		Targets: []schema.Target{
+			{
+				URL: aws.String("https://www.google.com"),
+				Regions: []string{
+					"ap-northeast-2",
+					"ap-northeast-1",
+				},
+			},
+		},
+		Regions: []schema.Region{
+			{
+				Region: aws.String("ap-northeast-1"),
+			},
+			{
+				Region: aws.String("ap-northeast-2"),
+			},
+			{
+				Region: aws.String("us-east-1"),
+			},
+		},
+	}
+
+	regions, err := GetRegionsFromTemplate(config, false, "ap-northeast-2")
+	if err != nil {
+		t.Errorf(err.Error())
+	}
+
+	regionIDs := getRegionIDs(regions)
+
+	if err := CheckAvailableRegions(regionIDs, config.Targets); err != nil {
+		t.Errorf(err.Error())
+	}
+
+	config.Targets[0].Regions = append(config.Targets[0].Regions, "us-west-1")
+
+	if err := CheckAvailableRegions(regionIDs, config.Targets); err == nil {
+		t.Errorf("Error occurred on region validation check")
 	}
 }

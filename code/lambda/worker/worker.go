@@ -18,6 +18,7 @@ package worker
 
 import (
 	"errors"
+	"fmt"
 	"net/url"
 
 	"github.com/DevopsArtFactory/bigshot/code/lambda/env"
@@ -45,15 +46,19 @@ func (w *Worker) Run(envs env.Env, evt event.Event) error {
 func (w *Worker) RunTest(workerType string, slackURLs []string) error {
 	evts := []event.Event{
 		{
-			Target:    "https://www.google.com",
+			Target:    "www.google.com",
+			Port:      "443",
 			Method:    "GET",
 			SlackURLs: slackURLs,
+			LogLevel:  "debug",
 		},
-		//{
-		//	Target:    "https://www.amazon.com",
-		//	Method:    "GET",
-		//	SlackURLs: slackURLs,
-		//},
+		{
+			Target:    "www.google.com",
+			Port:      "80",
+			Method:    "GET",
+			SlackURLs: slackURLs,
+			LogLevel:  "debug",
+		},
 	}
 
 	for _, evt := range evts {
@@ -75,13 +80,14 @@ func Shoot(t, region string, evt event.Event) error {
 		return errors.New("no target specified")
 	}
 
+	fmt.Println(evt)
 	shooter := shot.NewShooter(t, region)
 	if shooter == nil {
 		return errors.New("cannot find the right shooter for lambda")
 	}
 	_, err := url.Parse(evt.Target)
 	if err == nil {
-		shooter.SetTarget(evt.Target)
+		shooter.SetTarget(evt.Target, evt.Port)
 		shooter.SetMethod(evt.Method)
 		if evt.Body != nil {
 			shooter.SetBody(evt.Body)

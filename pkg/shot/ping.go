@@ -82,7 +82,7 @@ func (p *Ping) SetRate(freq int) {
 }
 
 // SetTarget sets target for api call
-func (p *Ping) SetTarget(url string) {
+func (p *Ping) SetTarget(url, port string) {
 	p.Target = url
 	parsed, err := parseURL(url)
 	if err != nil {

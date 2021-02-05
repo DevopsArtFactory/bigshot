@@ -77,16 +77,15 @@ func (t *Tracer) SetTimeout(i int) {
 }
 
 // SetTarget sets the target for the request
-func (t *Tracer) SetTarget(s string) {
-	logrus.Infof("Target: %s", s)
-	t.Target = s
-	if strings.HasPrefix(s, "http://") {
-		t.Protocol = constants.HTTP
-	}
-
-	if strings.HasPrefix(s, "https://") {
+func (t *Tracer) SetTarget(url, port string) {
+	if port == "443" {
 		t.Protocol = constants.HTTPS
+		t.Target = fmt.Sprintf("%s://%s", strings.ToLower(t.Protocol), url)
+	} else {
+		t.Protocol = constants.HTTP
+		t.Target = fmt.Sprintf("%s://%s:%s", strings.ToLower(t.Protocol), url, port)
 	}
+	logrus.Infof("Target: %s, Protocol: %s", t.Target, t.Protocol)
 }
 
 // SetLogLevel sets loglevel

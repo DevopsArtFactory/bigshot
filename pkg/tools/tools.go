@@ -112,18 +112,22 @@ func Formatting(i interface{}) interface{} {
 }
 
 // GenerateNewWorkerName generates a new name for lambda function
-func GenerateNewWorkerName(region, name, mode string) string {
-	return fmt.Sprintf("%s-%s-%s-%s", constants.CommonNamePrefix, name, region, mode)
+func GenerateNewWorkerName(region, name *string, mode string, internal bool) string {
+	if !internal {
+		return fmt.Sprintf("%s-%s-%s-%s", constants.CommonNamePrefix, *name, *region, mode)
+	}
+
+	return fmt.Sprintf("%s-%s-%s-%s-internal", constants.CommonNamePrefix, *name, *region, mode)
 }
 
 // GenerateNewLambdaRoleName generates a new role name for lambda function
-func GenerateNewLambdaRoleName(region, name string) string {
-	return fmt.Sprintf("%s-%s-%s", constants.CommonNamePrefix, name, region)
+func GenerateNewLambdaRoleName(region, name *string) string {
+	return fmt.Sprintf("%s-%s-%s", constants.CommonNamePrefix, *name, *region)
 }
 
 // GenerateDescription generates a description for lambda function
-func GenerateDescription(region string) string {
-	return fmt.Sprintf("Bigshot lambda worker in %s", region)
+func GenerateDescription(region *string) string {
+	return fmt.Sprintf("Bigshot lambda worker in %s", *region)
 }
 
 // GenerateNewTableName generates a new name for lambda function
@@ -188,4 +192,9 @@ func IntToString(n int) string {
 // Int64ToString changes int to string
 func Int64ToString(n int64) string {
 	return strconv.Itoa(int(n))
+}
+
+// GetExponentialTime returns exponential time difference
+func GetExponentialTime(base, count int) time.Duration {
+	return time.Duration(1+(2*base-count)) * time.Second
 }

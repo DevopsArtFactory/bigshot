@@ -20,68 +20,45 @@ import (
 	"github.com/aws/aws-sdk-go/aws"
 
 	"github.com/DevopsArtFactory/bigshot/pkg/constants"
-	"github.com/DevopsArtFactory/bigshot/pkg/tools"
 )
 
 type Config struct {
 	Name                 string
 	Description          string
-	EnvironmentVariables map[string]*string
 	Handler              string
-	Publish              bool
-	MemorySize           int64
-	Role                 *string
 	Runtime              string
-	Tags                 map[string]*string
-	Timeout              int64
 	S3Bucket             string
 	S3Key                string
+	EnvironmentVariables map[string]*string
+	Tags                 map[string]*string
+	Timeout              int64
+	MemorySize           int64
+	Role                 *string
+	SecurityGroups       []string
+	Subnets              []string
 	ZipFile              []byte
-}
-
-// GetBaseWorkerConfig returns base lambda configuration
-func GetBaseWorkerConfig(region, mode, appName string, roleArn *string, zipFile []byte, timeout int) Config {
-	env := GetEnvironmentVariables(region, mode, appName)
-	cf := Config{
-		Name:                 tools.GenerateNewWorkerName(region, appName, mode),
-		Description:          tools.GenerateDescription(region),
-		EnvironmentVariables: env,
-		Handler:              "out/code/lambda/handler",
-		MemorySize:           int64(256),
-		Tags:                 GetTags(region, mode),
-		Role:                 roleArn,
-		Publish:              true,
-		Runtime:              constants.GoRunTime,
-		Timeout:              int64(timeout),
-	}
-	if zipFile != nil {
-		cf.ZipFile = zipFile
-	} else {
-		cf.S3Bucket = constants.DefaultS3Bucket
-		cf.S3Key = constants.DefaultS3Key
-	}
-
-	return cf
+	Publish              bool
+	Internal             bool
 }
 
 // GetEnvironmentVariables makes environment variables
-func GetEnvironmentVariables(region, mode, template string) map[string]*string {
+func GetEnvironmentVariables(region *string, mode string, template *string) map[string]*string {
 	env := map[string]*string{
-		"region": aws.String(region),
-		"mode":   aws.String(mode),
+		"region": region,
+		"mode":   &mode,
 	}
 
-	if len(template) > 0 && mode == constants.ManagerMode {
-		env["template"] = aws.String(template)
+	if template != nil && mode == constants.ManagerMode {
+		env["template"] = template
 	}
 
 	return env
 }
 
 // GetTags makes tags
-func GetTags(region, mode string) map[string]*string {
+func GetTags(region *string, mode string) map[string]*string {
 	tags := map[string]*string{
-		"region": aws.String(region),
+		"region": region,
 		"mode":   aws.String(mode),
 	}
 

@@ -18,16 +18,17 @@ package workermanager
 
 import (
 	"encoding/json"
-	"strconv"
 	"sync"
 
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 	"github.com/sirupsen/logrus"
 
 	"github.com/DevopsArtFactory/bigshot/code/lambda/env"
 	"github.com/DevopsArtFactory/bigshot/pkg/builder"
 	"github.com/DevopsArtFactory/bigshot/pkg/client"
 	"github.com/DevopsArtFactory/bigshot/pkg/constants"
+	"github.com/DevopsArtFactory/bigshot/pkg/schema"
 	"github.com/DevopsArtFactory/bigshot/pkg/tools"
 )
 
@@ -69,19 +70,13 @@ func (w *WorkerManager) RunTest() error {
 
 // Trigger will invoke other regions' lambda
 func Trigger(item map[string]*dynamodb.AttributeValue) error {
-	var logLevel string
-	if _, ok := item["log"]; ok {
-		logLevel = *item["log"].S
-	}
-
-	template := *item["name"].S
-	regions := item["regions"]
-	totalInterval, err := strconv.Atoi(*item["interval"].N)
-	if err != nil {
+	var template schema.Template
+	if err := dynamodbattribute.UnmarshalMap(item, &template); err != nil {
 		return err
 	}
 
-	interval := totalInterval/len(regions.L) - 1
+	logLevel := *template.Log
+	interval := *template.Interval/len(template.Regions) - 1
 	logrus.Infof("Interval: %d", interval)
 
 	var wg sync.WaitGroup
@@ -101,72 +96,74 @@ func Trigger(item map[string]*dynamodb.AttributeValue) error {
 		output <- ret
 	}(input, output, &wg)
 
-	var slackURLs []string
-	for _, slack := range item[constants.BigShotSlackURLs].SS {
-		slackURLs = append(slackURLs, *slack)
-	}
-
-	f := func(regionData map[string]*dynamodb.AttributeValue, target *dynamodb.AttributeValue, ch chan error) {
-		data := target.M
+	f := func(regionData schema.Region, target schema.Target, ch chan error) {
 		timeout := constants.DefaultTargetTimeout
-		if _, ok := data["timeout"]; ok {
-			timeout, err = strconv.Atoi(*data["timeout"].N)
-			if err != nil {
-				ch <- err
-				return
-			}
+		if template.Timeout != nil {
+			timeout = *template.Timeout
 		}
-		logrus.Infof("%s, %d", *data["url"].S, timeout)
+		logrus.Infof("%s, %s, %d", *target.URL, *target.Port, timeout)
 
-		m := map[string]interface{}{
-			"target":                   *data["url"].S,
-			"method":                   *data["method"].S,
+		data := map[string]interface{}{
+			"target":                   *target.URL,
+			"port":                     *target.Port,
+			"method":                   *target.Method,
 			"timeout":                  timeout,
-			constants.BigShotSlackURLs: slackURLs,
+			constants.BigShotSlackURLs: template.SlackURLs,
 		}
 
 		if len(logLevel) > 0 {
-			m["log_level"] = logLevel
+			data["log_level"] = logLevel
 		}
 
-		if _, ok := data["body"]; ok {
+		if target.Body != nil {
 			body := map[string]string{}
-			for k, v := range data["body"].M {
-				body[k] = *v.S
+			for k, v := range target.Body {
+				body[k] = v
 			}
-			m["body"] = body
+			data["body"] = body
 		}
 
-		if _, ok := data["header"]; ok {
+		if target.Header != nil {
 			header := map[string]string{}
-			for k, v := range data["header"].M {
-				header[k] = *v.S
+			for k, v := range target.Header {
+				header[k] = v
 			}
-			m["header"] = header
+			data["header"] = header
 		}
 
-		payload, err := json.Marshal(m)
+		payload, err := json.Marshal(data)
 		if err != nil {
 			ch <- err
 			return
 		}
 
-		regionID := *regionData["region"].S
-		logrus.Infof("Lambda will be triggered in %s: %s", regionID, *data["url"].S)
+		logrus.Infof("Lambda will be triggered in %s: %s", *regionData.Region, *target.URL)
 
-		lambdaClient := client.NewLambdaClient(regionID)
-		err = lambdaClient.Trigger(regionID, template, payload)
+		lambdaClient := client.NewLambdaClient(*regionData.Region)
+
+		internal := false
+		if target.Internal != nil {
+			internal = *target.Internal
+		}
+		err = lambdaClient.Trigger(regionData.Region, template.Name, payload, internal)
+		if err == nil {
+			logrus.Infof("function is successfully triggered: %s, %s, %s", *regionData.Region, *target.Port, *target.URL)
+		}
+
 		ch <- err
 	}
 
-	for _, region := range regions.L {
-		regionData := region.M
-		for _, target := range item["targets"].L {
-			wg.Add(1)
-			go f(regionData, target, input)
-		}
+	for _, target := range template.Targets {
+		for _, region := range template.Regions {
+			if target.Internal != nil && *target.Internal {
+				if !tools.IsStringInArray(*region.Region, target.Regions) {
+					continue
+				}
+			}
 
-		logrus.Infof("region %s is done", *regionData["region"].S)
+			wg.Add(1)
+			go f(region, target, input)
+		}
 	}
 
 	wg.Wait()

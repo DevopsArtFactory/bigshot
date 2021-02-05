@@ -17,49 +17,60 @@ limitations under the License.
 package schema
 
 // Configuration for bigshot
-type Config struct {
+type Template struct {
 	// Bigshot template name. This will be key of dynamodb table
-	Name string `yaml:"name"`
+	Name *string `yaml:"name,omitempty" json:"name"`
 
 	// Lambda log level
-	Log string `yaml:"log"`
+	Log *string `yaml:"log,omitempty" json:"log"`
 
 	// Lambda execution timeout in seconds
-	Timeout int `yaml:"timeout"`
+	Timeout *int `yaml:"timeout,omitempty" json:"timeout"`
 
 	// Synthetic interval in seconds
-	Interval int `yaml:"interval"`
+	Interval *int `yaml:"interval,omitempty" json:"interval"`
 
 	// List of slack URLs for alert
-	SlackURLs []string `yaml:"slack_urls"`
+	SlackURLs []string `yaml:"slack_urls,omitempty" json:"slack_urls"`
 
 	// List of targets for api check
-	Targets []Target `yaml:"targets,omitempty"`
+	Targets []Target `yaml:"targets,omitempty" json:"targets"`
 
 	// List of regions.
-	Regions []Region `yaml:"regions,omitempty"`
+	Regions []Region `yaml:"regions,omitempty" json:"regions"`
 }
 
 // Target configuration
 type Target struct {
 	// Target URL of API
-	URL string `json:"url,omitempty"`
+	URL *string `yaml:"url,omitempty" json:"url"`
+
+	// Target Port of API
+	Port *string `yaml:"port,omitempty" json:"port"`
 
 	// API method
-	Method string `json:"method,omitempty"`
+	Method *string `yaml:"method,omitempty" json:"method"`
 
 	// Body value of API
-	Body map[string]string `json:"body,omitempty"`
+	Body map[string]string `yaml:"body,omitempty" json:"body"`
 
 	// Header value of API
-	Header map[string]string `json:"header,omitempty"`
+	Header map[string]string `yaml:"header,omitempty" json:"header"`
 
 	// Target Request timeout
-	Timeout int `yaml:"timeout"`
+	Timeout *int `yaml:"timeout,omitempty" json:"timeout"`
+
+	// Internal means whether or not to run within VPC
+	Internal *bool `yaml:"internal" json:"internal"`
+
+	// Regions means the list of regions to run bigshot check
+	Regions []string `yaml:"regions,omitempty" json:"regions"`
 }
 
 // Region configuration
 type Region struct {
 	// ID of region
-	Region string `json:"region,omitempty"`
+	Region         *string  `yaml:"region,omitempty" json:"region"`
+	SecurityGroups []string `yaml:"security_groups" json:"security_groups"`
+	Subnets        []string `yaml:"subnets,omitempty" json:"subnets"`
 }
