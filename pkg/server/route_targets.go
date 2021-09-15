@@ -124,9 +124,9 @@ func VerifyTarget(w http.ResponseWriter, req *http.Request) {
 		logger.WriteError(err)
 		return
 	}
+	controller.SetDefaultForTarget(&target)
 
-	fmt.Println(target)
-	fmt.Println(req.ContentLength)
+	logrus.Debugf("Target to verify: %s %s %s", *target.URL, *target.Port, *target.Method)
 
 	res, err := controller.RunTargetVerification(target)
 	if err != nil {
@@ -135,11 +135,10 @@ func VerifyTarget(w http.ResponseWriter, req *http.Request) {
 		return
 	}
 
-	fmt.Println(res)
-
 	m := map[string]interface{}{
 		"body": *res,
 	}
+	logrus.Debugf("Verification Result: %d %s", res.Response.StatusCode, res.Response.StatusMsg)
 
 	w.WriteHeader(http.StatusOK)
 	_ = json.NewEncoder(w).Encode(m)

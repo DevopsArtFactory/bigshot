@@ -112,17 +112,17 @@ html
 </html>
 {{< /highlight >}}
 
-## List Types
+## InfoList Types
 
-#### Ordered List
+#### Ordered InfoList
 
 1. First item
 2. Second item
 3. Third item
 
-#### Unordered List
+#### Unordered InfoList
 
-* List item
+* InfoList item
 * Another item
 * And another item
 

@@ -1,174 +1,152 @@
-/*!
-
-=========================================================
-* Black Dashboard React v1.1.0
-=========================================================
-
-* Product Page: https://www.creative-tim.com/product/black-dashboard-react
-* Copyright 2020 Creative Tim (https://www.creative-tim.com)
-* Licensed under MIT (https://github.com/creativetimofficial/black-dashboard-react/blob/master/LICENSE.md)
-
-* Coded by Creative Tim
-
-=========================================================
-
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-*/
 /*eslint-disable*/
 import React from "react";
-import { NavLink, Link } from "react-router-dom";
-// nodejs library to set properties for components
-import { PropTypes } from "prop-types";
+import classNames from "classnames";
+import PropTypes from "prop-types";
+import { NavLink } from "react-router-dom";
+// @material-ui/core components
+import { makeStyles } from "@material-ui/core/styles";
+import Drawer from "@material-ui/core/Drawer";
+import Hidden from "@material-ui/core/Hidden";
+import List from "@material-ui/core/List";
+import ListItem from "@material-ui/core/ListItem";
+import ListItemText from "@material-ui/core/ListItemText";
+import Icon from "@material-ui/core/Icon";
+// core components
 
-// javascript plugin used to create scrollbars on windows
-import PerfectScrollbar from "perfect-scrollbar";
+import styles from "assets/jss/material-dashboard-react/components/sidebarStyle.js";
 
-// reactstrap components
-import { Nav, NavLink as ReactstrapNavLink } from "reactstrap";
+const useStyles = makeStyles(styles);
 
-var ps;
-
-class Sidebar extends React.Component {
-  constructor(props) {
-    super(props);
-    this.activeRoute.bind(this);
-  }
+export default function Sidebar(props) {
+  const classes = useStyles();
   // verifies if routeName is the one active (in browser input)
-  activeRoute(routeName) {
-    return this.props.location.pathname.indexOf(routeName) > -1 ? "active" : "";
+  function activeRoute(routeName) {
+    return window.location.href.indexOf(routeName) > -1 ? true : false;
   }
-  componentDidMount() {
-    if (navigator.platform.indexOf("Win") > -1) {
-      ps = new PerfectScrollbar(this.refs.sidebar, {
-        suppressScrollX: true,
-        suppressScrollY: false
-      });
-    }
-  }
-  componentWillUnmount() {
-    if (navigator.platform.indexOf("Win") > -1) {
-      ps.destroy();
-    }
-  }
-  linkOnClick = () => {
-    document.documentElement.classList.remove("nav-open");
-  };
-  render() {
-    const { bgColor, routes, rtlActive, logo } = this.props;
-    let logoImg = null;
-    let logoText = null;
-    if (logo !== undefined) {
-      if (logo.outterLink !== undefined) {
-        logoImg = (
-          <a
-            href={logo.outterLink}
-            className="simple-text logo-mini"
-            target="_blank"
-            onClick={this.props.toggleSidebar}
+  const { color, logo, image, logoText, routes } = props;
+  var links = (
+    <List className={classes.list}>
+      {routes.map((prop, key) => {
+        var activePro = " ";
+        var listItemClasses = classNames({
+            [" " + classes[color]]: activeRoute(prop.layout + prop.path)
+        });
+        const whiteFontClasses = classNames({
+          [" " + classes.whiteFont]: activeRoute(prop.layout + prop.path)
+        });
+
+        if (prop.skip) {
+            return null
+        }
+        return (
+          <NavLink
+            to={prop.layout + prop.path}
+            className={activePro + classes.item}
+            activeClassName="active"
+            key={key}
           >
-            <div className="logo-img">
-              <img src={logo.imgSrc} alt="react-logo" />
-            </div>
-          </a>
-        );
-        logoText = (
-          <a
-            href={logo.outterLink}
-            className="simple-text logo-normal"
-            target="_blank"
-            onClick={this.props.toggleSidebar}
-          >
-            {logo.text}
-          </a>
-        );
-      } else {
-        logoImg = (
-          <Link
-            to={logo.innerLink}
-            className="simple-text logo-mini"
-            onClick={this.props.toggleSidebar}
-          >
-            <div className="logo-img">
-              <img src={logo.imgSrc} alt="react-logo" />
-            </div>
-          </Link>
-        );
-        logoText = (
-          <Link
-            to={logo.innerLink}
-            className="simple-text logo-normal"
-            onClick={this.props.toggleSidebar}
-          >
-            {logo.text}
-          </Link>
-        );
-      }
-    }
-    return (
-      <div className="sidebar" data={bgColor}>
-        <div className="sidebar-wrapper" ref="sidebar">
-          {logoImg !== null || logoText !== null ? (
-            <div className="logo">
-              {logoImg}
-              {logoText}
-            </div>
-          ) : null}
-          <Nav>
-            {routes.map((prop, key) => {
-              if (prop.redirect) return null;
-              if (prop.skip) return null;
-              return (
-                <li
-                  className={
-                    this.activeRoute(prop.path) +
-                    (prop.pro ? " active-pro" : "")
-                  }
-                  key={key}
+            <ListItem button className={classes.itemLink + listItemClasses}>
+              {typeof prop.icon === "string" ? (
+                <Icon
+                  className={classNames(classes.itemIcon, whiteFontClasses, {
+                    [classes.itemIconRTL]: props.rtlActive
+                  })}
                 >
-                  <NavLink
-                    to={prop.layout + prop.path}
-                    className="nav-link"
-                    activeClassName="active"
-                    onClick={this.props.toggleSidebar}
-                  >
-                    <i className={prop.icon} />
-                    <p>{rtlActive ? prop.rtlName : prop.name}</p>
-                  </NavLink>
-                </li>
-              );
-            })}
-          </Nav>
+                  {prop.icon}
+                </Icon>
+              ) : (
+                <prop.icon
+                  className={classNames(classes.itemIcon, whiteFontClasses, {
+                    [classes.itemIconRTL]: props.rtlActive
+                  })}
+                />
+              )}
+              <ListItemText
+                primary={props.rtlActive ? prop.rtlName : prop.name}
+                className={classNames(classes.itemText, whiteFontClasses, {
+                  [classes.itemTextRTL]: props.rtlActive
+                })}
+                disableTypography={true}
+              />
+            </ListItem>
+          </NavLink>
+        );
+      })}
+    </List>
+  );
+  var brand = (
+    <div className={classes.logo}>
+      <a
+        href="/"
+        className={classNames(classes.logoLink, {
+          [classes.logoLinkRTL]: props.rtlActive
+        })}
+      >
+        <div className={classes.logoImage}>
+          <img src={logo} alt="logo" className={classes.img} />
         </div>
-      </div>
-    );
-  }
+        {logoText}
+      </a>
+    </div>
+  );
+  return (
+    <div>
+      <Hidden mdUp implementation="css">
+        <Drawer
+          variant="temporary"
+          anchor={props.rtlActive ? "left" : "right"}
+          open={props.open}
+          classes={{
+            paper: classNames(classes.drawerPaper, {
+              [classes.drawerPaperRTL]: props.rtlActive
+            })
+          }}
+          onClose={props.handleDrawerToggle}
+          ModalProps={{
+            keepMounted: true // Better open performance on mobile.
+          }}
+        >
+          {brand}
+          {image !== undefined ? (
+            <div
+              className={classes.background}
+              style={{ backgroundImage: "url(" + image + ")" }}
+            />
+          ) : null}
+        </Drawer>
+      </Hidden>
+      <Hidden smDown implementation="css">
+        <Drawer
+          anchor={props.rtlActive ? "right" : "left"}
+          variant="permanent"
+          open
+          classes={{
+            paper: classNames(classes.drawerPaper, {
+              [classes.drawerPaperRTL]: props.rtlActive
+            })
+          }}
+        >
+          {brand}
+          <div className={classes.sidebarWrapper}>{links}</div>
+          {image !== undefined ? (
+            <div
+              className={classes.background}
+              style={{ backgroundImage: "url(" + image + ")" }}
+            />
+          ) : null}
+        </Drawer>
+      </Hidden>
+    </div>
+  );
 }
 
-Sidebar.defaultProps = {
-  rtlActive: false,
-  bgColor: "primary",
-  routes: [{}]
-};
-
 Sidebar.propTypes = {
-  // if true, then instead of the routes[i].name, routes[i].rtlName will be rendered
-  // insde the links of this component
   rtlActive: PropTypes.bool,
-  bgColor: PropTypes.oneOf(["primary", "blue", "green"]),
+  handleDrawerToggle: PropTypes.func,
+  bgColor: PropTypes.oneOf(["purple", "blue", "green", "orange", "red"]),
+  logo: PropTypes.string,
+  image: PropTypes.string,
+  logoText: PropTypes.string,
   routes: PropTypes.arrayOf(PropTypes.object),
-  logo: PropTypes.shape({
-    // innerLink is for links that will direct the user within the app
-    // it will be rendered as <Link to="...">...</Link> tag
-    innerLink: PropTypes.string,
-    // outterLink is for links that will direct the user outside the app
-    // it will be rendered as simple <a href="...">...</a> tag
-    outterLink: PropTypes.string,
-    // the text of the logo
-    text: PropTypes.node,
-    // the image src of the logo
-    imgSrc: PropTypes.string
-  })
+  open: PropTypes.bool
 };
-
-export default Sidebar;

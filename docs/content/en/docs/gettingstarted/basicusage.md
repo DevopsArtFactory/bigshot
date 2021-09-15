@@ -17,7 +17,7 @@ Currently, we are supporting AWS provider. So, you need AWS credentials set up i
 Audit:
 * [bigshot list](#bigshot-list) - to gather data of infrastructure resources.
 
-### bigshot List 
+### bigshot InfoList 
 - In order to find resources, you need to specify resources with `--resources`.
 - By default, `bigshot` will show you the result on Stdout. 
 - You can simply change output format with `--output, -o` .

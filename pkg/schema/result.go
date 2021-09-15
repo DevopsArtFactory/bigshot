@@ -45,8 +45,16 @@ type TracingData struct {
 	// Stat
 	DNSLookup        time.Duration
 	TCPConnection    time.Duration
-	TLSHandShacking  time.Duration
+	TLSHandShaking  time.Duration
 	ServerProcessing time.Duration
 	ContentTransfer  time.Duration
 	Total            time.Duration
+
+	// Stat as String
+	DNSLookupStr        string
+	TCPConnectionStr    string
+	TLSHandShakingStr   string
+	ServerProcessingStr string
+	ContentTransferStr  string
+	TotalStr            string
 }

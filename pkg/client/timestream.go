@@ -149,7 +149,7 @@ func (t *TimeStream) WriteData(databaseName, tableName, region, protocol string,
 		input.Records = append(input.Records, &timestreamwrite.Record{
 			Dimensions:       dimensions,
 			MeasureName:      aws.String("tls_handshaking"),
-			MeasureValue:     aws.String(tools.Int64ToString(result.TracingData.TLSHandShacking.Milliseconds())),
+			MeasureValue:     aws.String(tools.Int64ToString(result.TracingData.TLSHandShaking.Milliseconds())),
 			MeasureValueType: aws.String("DOUBLE"),
 			Time:             inputTime,
 			TimeUnit:         timeUnit,

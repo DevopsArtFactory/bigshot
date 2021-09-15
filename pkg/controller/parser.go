@@ -16,84 +16,34 @@ limitations under the License.
 package controller
 
 import (
-	"strconv"
-
 	"github.com/aws/aws-sdk-go/service/dynamodb"
+	"github.com/aws/aws-sdk-go/service/dynamodb/dynamodbattribute"
 
 	"github.com/DevopsArtFactory/bigshot/pkg/schema"
 )
 
 // ParseTemplates parses items to list of template
 func ParseTemplates(items []map[string]*dynamodb.AttributeValue) ([]schema.Template, error) {
-	var configs []schema.Template
+	var templates []schema.Template
 
 	for _, item := range items {
-		config, err := ChangeItemToConfig(item)
+		template, err := ChangeItemToTempalte(item)
 		if err != nil {
 			return nil, err
 		}
-		configs = append(configs, *config)
+		templates = append(templates, *template)
 	}
 
-	return configs, nil
+	return templates, nil
 }
 
-// ChangeItemToConfig changes item value from dynamoDB to schema.Template
-func ChangeItemToConfig(item map[string]*dynamodb.AttributeValue) (*schema.Template, error) {
-	config := &schema.Template{
-		Name: item["name"].S,
-	}
-
-	interval, err := strconv.Atoi(*item["interval"].N)
-	if err != nil {
+// ChangeItemToTempalte changes item value from dynamoDB to schema.Template
+func ChangeItemToTempalte(item map[string]*dynamodb.AttributeValue) (*schema.Template, error) {
+	var template schema.Template
+	if err := dynamodbattribute.UnmarshalMap(item, &template); err != nil {
 		return nil, err
 	}
-	config.Interval = &interval
 
-	timeout, err := strconv.Atoi(*item["timeout"].N)
-	if err != nil {
-		return nil, err
-	}
-	config.Timeout = &timeout
 
-	regions := []schema.Region{}
-	for _, region := range item["regions"].L {
-		regions = append(regions, schema.Region{Region: region.M["region"].S})
-	}
-	config.Regions = regions
-
-	slackURLs := []string{}
-	for _, url := range item["slack_urls"].SS {
-		slackURLs = append(slackURLs, *url)
-	}
-	config.SlackURLs = slackURLs
-
-	targets := []schema.Target{}
-	for _, target := range item["targets"].L {
-		t := schema.Target{
-			URL:    target.M["url"].S,
-			Method: target.M["method"].S,
-		}
-
-		if _, ok := target.M["header"]; ok {
-			headers := map[string]string{}
-			for key, val := range target.M["header"].M {
-				headers[key] = *val.S
-			}
-			t.Header = headers
-		}
-
-		if _, ok := target.M["body"]; ok {
-			bodies := map[string]string{}
-			for key, val := range target.M["body"].M {
-				bodies[key] = *val.S
-			}
-			t.Body = bodies
-		}
-
-		targets = append(targets, t)
-	}
-	config.Targets = targets
-
-	return config, nil
+	return &template, nil
 }

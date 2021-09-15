@@ -17,8 +17,7 @@ limitations under the License.
 package controller
 
 import (
-	"fmt"
-
+	"github.com/aws/aws-sdk-go/aws"
 	"github.com/sirupsen/logrus"
 
 	"github.com/DevopsArtFactory/bigshot/pkg/builder"
@@ -128,7 +127,7 @@ func GetDetail(template string) (*schema.Template, error) {
 		return nil, err
 	}
 
-	return ChangeItemToConfig(item)
+	return ChangeItemToTempalte(item)
 }
 
 // ModifyTemplate modifies template only
@@ -155,7 +154,12 @@ func RunTargetVerification(target schema.Target) (*schema.Result, error) {
 		return nil, err
 	}
 
-	fmt.Println(result)
-
 	return result, nil
+}
+
+// SetDefaultForTarget sets default for target
+func SetDefaultForTarget(target *schema.Target) {
+	if target.Port == nil {
+		target.Port = aws.String("80")
+	}
 }

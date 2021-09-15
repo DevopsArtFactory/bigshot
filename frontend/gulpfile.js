@@ -9,12 +9,11 @@ gulp.task("licenses", async function() {
       gap.prependText(`/*!
 
 =========================================================
-* Black Dashboard React - v1.1.0
+* Material Dashboard React - v1.9.0
 =========================================================
 
-* Product Page: https://www.creative-tim.com/product/black-dashboard-react
-* Copyright 2020 Creative Tim (https://www.creative-tim.com)
-* Licensed under MIT (https://github.com/creativetimofficial/black-dashboard-react/blob/master/LICENSE.md)
+* Product Page: https://www.creative-tim.com/product/material-dashboard-react
+* Copyright 2020 Creative Tim (http://www.creative-tim.com)
 
 * Coded by Creative Tim
 
@@ -33,12 +32,11 @@ gulp.task("licenses", async function() {
       gap.prependText(`<!--
 
 =========================================================
-* Black Dashboard React - v1.1.0
+* Material Dashboard React - v1.9.0
 =========================================================
 
-* Product Page: https://www.creative-tim.com/product/black-dashboard-react
-* Copyright 2020 Creative Tim (https://www.creative-tim.com)
-* Licensed under MIT (https://github.com/creativetimofficial/black-dashboard-react/blob/master/LICENSE.md)
+* Product Page: https://www.creative-tim.com/product/material-dashboard-react
+* Copyright 2020 Creative Tim (http://www.creative-tim.com)
 
 * Coded by Creative Tim
 
@@ -57,12 +55,11 @@ gulp.task("licenses", async function() {
       gap.prependText(`/*!
 
 =========================================================
-* Black Dashboard React - v1.1.0
+* Material Dashboard React - v1.9.0
 =========================================================
 
-* Product Page: https://www.creative-tim.com/product/black-dashboard-react
-* Copyright 2020 Creative Tim (https://www.creative-tim.com)
-* Licensed under MIT (https://github.com/creativetimofficial/black-dashboard-react/blob/master/LICENSE.md)
+* Product Page: https://www.creative-tim.com/product/material-dashboard-react
+* Copyright 2020 Creative Tim (http://www.creative-tim.com)
 
 * Coded by Creative Tim
 

@@ -1,52 +1,58 @@
-/*!
-
-=========================================================
-* Black Dashboard React v1.1.0
-=========================================================
-
-* Product Page: https://www.creative-tim.com/product/black-dashboard-react
-* Copyright 2020 Creative Tim (https://www.creative-tim.com)
-* Licensed under MIT (https://github.com/creativetimofficial/black-dashboard-react/blob/master/LICENSE.md)
-
-* Coded by Creative Tim
-
-=========================================================
-
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-*/
 /*eslint-disable*/
 import React from "react";
-// used for making the prop types of this component
 import PropTypes from "prop-types";
+// @material-ui/core components
+import { makeStyles } from "@material-ui/core/styles";
+import ListItem from "@material-ui/core/ListItem";
+import List from "@material-ui/core/List";
+// core components
+import styles from "assets/jss/material-dashboard-react/components/footerStyle.js";
 
-// reactstrap components
-import { Container, Row, Nav, NavItem, NavLink } from "reactstrap";
+const useStyles = makeStyles(styles);
 
-class Footer extends React.Component {
-  render() {
-    return (
-      <footer className="footer">
-        <Container fluid>
-          <Nav>
-            <NavItem>
-              <NavLink href="https://github.com/DevopsArtFactory/bigshot">BigShot</NavLink>
-            </NavItem>
-          </Nav>
-          <div className="copyright">
-            © {new Date().getFullYear()} made with{" "}
-            <i className="tim-icons icon-heart-2" /> by{" "}
+export default function Footer(props) {
+  const classes = useStyles();
+  return (
+    <footer className={classes.footer}>
+      <div className={classes.container}>
+        <div className={classes.left}>
+          <List className={classes.list}>
+            <ListItem className={classes.inlineBlock}>
+              <a href="#home" className={classes.block}>
+                Home
+              </a>
+            </ListItem>
+            <ListItem className={classes.inlineBlock}>
+              <a href="#company" className={classes.block}>
+                Company
+              </a>
+            </ListItem>
+            <ListItem className={classes.inlineBlock}>
+              <a href="#portfolio" className={classes.block}>
+                Portfolio
+              </a>
+            </ListItem>
+            <ListItem className={classes.inlineBlock}>
+              <a href="#blog" className={classes.block}>
+                Blog
+              </a>
+            </ListItem>
+          </List>
+        </div>
+        <p className={classes.right}>
+          <span>
+            &copy; {1900 + new Date().getYear()}{" "}
             <a
-              href="https://github.com/DevopsArtFactory"
+              href="https://www.creative-tim.com?ref=mdr-footer"
               target="_blank"
+              className={classes.a}
             >
-              DevOpsArt
+              Creative Tim
             </a>
-          </div>
-        </Container>
-      </footer>
-    );
-  }
+            , made with love for a better web
+          </span>
+        </p>
+      </div>
+    </footer>
+  );
 }
-
-export default Footer;

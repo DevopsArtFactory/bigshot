@@ -220,7 +220,19 @@ func (t *Tracer) RunWithResult() (*schema.Result, error) {
 		return nil, err
 	}
 
+	StringifyResult(&t.Result)
+
 	return &t.Result, nil
+}
+
+// StringifyResult makes result as string
+func StringifyResult(result *schema.Result) {
+	result.TracingData.DNSLookupStr = result.TracingData.DNSLookup.String()
+	result.TracingData.ContentTransferStr = result.TracingData.ContentTransfer.String()
+	result.TracingData.TCPConnectionStr = result.TracingData.TCPConnection.String()
+	result.TracingData.TLSHandShakingStr = result.TracingData.TLSHandShaking.String()
+	result.TracingData.ServerProcessingStr = result.TracingData.ServerProcessing.String()
+	result.TracingData.TotalStr = result.TracingData.Total.String()
 }
 
 // PrintResult prints result
@@ -339,7 +351,7 @@ func (t *Tracer) SendAlarm() error {
 	if t.Protocol == constants.HTTPS {
 		fields = append(fields, slacker.Field{
 			Title: fmt.Sprintf("[%d]TLS Handshake", index),
-			Value: t.Result.TracingData.TLSHandShacking.String(),
+			Value: t.Result.TracingData.TLSHandShaking.String(),
 			Short: true,
 		})
 		index++
@@ -460,7 +472,7 @@ func (t *Tracer) DrawResultTable() error {
 			{
 				t.Result.TracingData.DNSLookup.String(),
 				t.Result.TracingData.TCPConnection.String(),
-				t.Result.TracingData.TLSHandShacking.String(),
+				t.Result.TracingData.TLSHandShaking.String(),
 				t.Result.TracingData.ServerProcessing.String(),
 				t.Result.TracingData.ContentTransfer.String(),
 			},
@@ -491,7 +503,7 @@ func Calculated(td schema.TracingData, tls bool) schema.TracingData {
 	td.DNSLookup = td.DNSDone.Sub(td.DNSStart)
 	td.TCPConnection = td.ConnectionDone.Sub(td.ConnectionStart)
 	if tls {
-		td.TLSHandShacking = td.TLSHandshakeDone.Sub(td.TLSHandshakeStart)
+		td.TLSHandShaking = td.TLSHandshakeDone.Sub(td.TLSHandshakeStart)
 	}
 	td.ServerProcessing = td.GetFirstResponseBtye.Sub(td.GotConn)
 	td.ContentTransfer = td.FinishRequest.Sub(td.GetFirstResponseBtye)

@@ -1,143 +1,190 @@
-/*!
-
-=========================================================
-* Black Dashboard React v1.1.0
-=========================================================
-
-* Product Page: https://www.creative-tim.com/product/black-dashboard-react
-* Copyright 2020 Creative Tim (https://www.creative-tim.com)
-* Licensed under MIT (https://github.com/creativetimofficial/black-dashboard-react/blob/master/LICENSE.md)
-
-* Coded by Creative Tim
-
-=========================================================
-
-* The above copyright notice and this permission notice shall be included in all copies or substantial portions of the Software.
-
-*/
+/*eslint-disable*/
 import React, { Component } from "react";
+// nodejs library to set properties for components
+import PropTypes from "prop-types";
+// nodejs library that concatenates classes
+import classnames from "classnames";
 
-// reactstrap components
-import { Button } from "reactstrap";
+import imagine1 from "assets/img/sidebar-1.jpg";
+import imagine2 from "assets/img/sidebar-2.jpg";
+import imagine3 from "assets/img/sidebar-3.jpg";
+import imagine4 from "assets/img/sidebar-4.jpg";
 
-class FixedPlugin extends Component {
-  constructor(props) {
-    super(props);
-    this.state = {
-      classes: "dropdown show-dropdown"
-    };
-  }
-  handleClick = () => {
-    if (this.state.classes === "dropdown show-dropdown") {
-      this.setState({ classes: "dropdown show-dropdown show" });
-    } else {
-      this.setState({ classes: "dropdown show-dropdown" });
-    }
+import Button from "components/CustomButtons/Button.js";
+
+export default function FixedPlugin(props) {
+  const [classes, setClasses] = React.useState("dropdown show");
+  const [bg_checked, setBg_checked] = React.useState(true);
+  const [bgImage, setBgImage] = React.useState(props.bgImage);
+  const handleClick = () => {
+    props.handleFixedClick();
   };
-  activateMode = mode => {
-    switch (mode) {
-      case "light":
-        document.body.classList.add("white-content");
-        break;
-      default:
-        document.body.classList.remove("white-content");
-        break;
-    }
-  };
-  render() {
-    return (
-      <div className="fixed-plugin">
-        <div className={this.state.classes}>
-          <div onClick={this.handleClick}>
-            <i className="fa fa-cog fa-2x" />
-          </div>
-          <ul className="dropdown-menu show">
-            <li className="header-title">SIDEBAR BACKGROUND</li>
-            <li className="adjustments-line">
-              <div className="badge-colors text-center">
+  return (
+    <div
+      className={classnames("fixed-plugin", {
+        "rtl-fixed-plugin": props.rtlActive
+      })}
+    >
+      <div id="fixedPluginClasses" className={props.fixedClasses}>
+        <div onClick={handleClick}>
+          <i className="fa fa-cog fa-2x" />
+        </div>
+        <ul className="dropdown-menu">
+          <li className="header-title">SIDEBAR FILTERS</li>
+          <li className="adjustments-line">
+            <a className="switch-trigger">
+              <div>
                 <span
                   className={
-                    this.props.bgColor === "primary"
-                      ? "badge filter badge-primary active"
-                      : "badge filter badge-primary"
+                    props.bgColor === "purple"
+                      ? "badge filter badge-purple active"
+                      : "badge filter badge-purple"
                   }
-                  data-color="primary"
+                  data-color="purple"
                   onClick={() => {
-                    this.props.handleBgClick("primary");
+                    props.handleColorClick("purple");
                   }}
-                />{" "}
+                />
                 <span
                   className={
-                    this.props.bgColor === "blue"
-                      ? "badge filter badge-info active"
-                      : "badge filter badge-info"
+                    props.bgColor === "blue"
+                      ? "badge filter badge-blue active"
+                      : "badge filter badge-blue"
                   }
                   data-color="blue"
                   onClick={() => {
-                    this.props.handleBgClick("blue");
+                    props.handleColorClick("blue");
                   }}
-                />{" "}
+                />
                 <span
                   className={
-                    this.props.bgColor === "green"
-                      ? "badge filter badge-success active"
-                      : "badge filter badge-success"
+                    props.bgColor === "green"
+                      ? "badge filter badge-green active"
+                      : "badge filter badge-green"
                   }
                   data-color="green"
                   onClick={() => {
-                    this.props.handleBgClick("green");
+                    props.handleColorClick("green");
                   }}
-                />{" "}
+                />
+                <span
+                  className={
+                    props.bgColor === "red"
+                      ? "badge filter badge-red active"
+                      : "badge filter badge-red"
+                  }
+                  data-color="red"
+                  onClick={() => {
+                    props.handleColorClick("red");
+                  }}
+                />
+                <span
+                  className={
+                    props.bgColor === "orange"
+                      ? "badge filter badge-orange active"
+                      : "badge filter badge-orange"
+                  }
+                  data-color="orange"
+                  onClick={() => {
+                    props.handleColorClick("orange");
+                  }}
+                />
               </div>
-            </li>
-            <li className="adjustments-line text-center color-change">
-              <span className="color-label">LIGHT MODE</span>{" "}
-              <span
-                className="badge light-badge mr-2"
-                onClick={() => this.activateMode("light")}
-              />{" "}
-              <span
-                className="badge dark-badge ml-2"
-                onClick={() => this.activateMode("dark")}
-              />{" "}
-              <span className="color-label">DARK MODE</span>{" "}
-            </li>
-            <li className="button-container">
+            </a>
+          </li>
+          <li className="header-title">Images</li>
+          <li className={bgImage === imagine1 ? "active" : ""}>
+            <a
+              className="img-holder switch-trigger"
+              onClick={() => {
+                setBgImage(imagine1);
+                props.handleImageClick(imagine1);
+              }}
+            >
+              <img src={imagine1} alt="..." />
+            </a>
+          </li>
+          <li className={bgImage === imagine2 ? "active" : ""}>
+            <a
+              className="img-holder switch-trigger"
+              onClick={() => {
+                setBgImage(imagine2);
+                props.handleImageClick(imagine2);
+              }}
+            >
+              <img src={imagine2} alt="..." />
+            </a>
+          </li>
+          <li className={bgImage === imagine3 ? "active" : ""}>
+            <a
+              className="img-holder switch-trigger"
+              onClick={() => {
+                setBgImage(imagine3);
+                props.handleImageClick(imagine3);
+              }}
+            >
+              <img src={imagine3} alt="..." />
+            </a>
+          </li>
+          <li className={bgImage === imagine4 ? "active" : ""}>
+            <a
+              className="img-holder switch-trigger"
+              onClick={() => {
+                setBgImage(imagine4);
+                props.handleImageClick(imagine4);
+              }}
+            >
+              <img src={imagine4} alt="..." />
+            </a>
+          </li>
+
+          <li className="button-container">
+            <div className="button-container">
               <Button
-                href="https://www.creative-tim.com/product/black-dashboard-react"
-                color="primary"
-                block
-                className="btn-round"
+                color="success"
+                href="https://www.creative-tim.com/product/material-dashboard-react?ref=mdr-fixed-plugin"
+                target="_blank"
+                fullWidth
               >
-                Download Now
+                Download free!
               </Button>
+            </div>
+          </li>
+          <li className="button-container">
+            <div className="button-container">
               <Button
-                color="default"
-                block
-                className="btn-round"
-                outline
-                href="https://demos.creative-tim.com/black-dashboard-react/#/documentation/tutorial"
+                color="warning"
+                href="https://www.creative-tim.com/product/material-dashboard-pro-react?ref=mdr-fixed-plugin"
+                target="_blank"
+                fullWidth
               >
-                Documentation
+                Get PRO version
               </Button>
-            </li>
-            <li className="header-title">Want more components?</li>
-            <li className="button-container">
-              <Button
-                href="https://www.creative-tim.com/product/black-dashboard-pro-react"
-                className="btn-round"
-                disabled
-                block
-                color="danger"
-              >
-                Get pro version
-              </Button>
-            </li>
-          </ul>
-        </div>
+            </div>
+          </li>
+          <li className="button-container">
+            <Button
+              color="info"
+              fullWidth
+              href="https://demos.creative-tim.com/material-dashboard-react/#/documentation/tutorial?ref=mdr-fixed-plugin"
+              target="_blank"
+            >
+              Documentation
+            </Button>
+          </li>
+          <li className="adjustments-line" />
+        </ul>
       </div>
-    );
-  }
+    </div>
+  );
 }
 
-export default FixedPlugin;
+FixedPlugin.propTypes = {
+  bgImage: PropTypes.string,
+  handleFixedClick: PropTypes.func,
+  rtlActive: PropTypes.bool,
+  fixedClasses: PropTypes.string,
+  bgColor: PropTypes.oneOf(["purple", "blue", "green", "orange", "red"]),
+  handleColorClick: PropTypes.func,
+  handleImageClick: PropTypes.func
+};
